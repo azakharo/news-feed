@@ -40,6 +40,7 @@ async function resetDatabase() {
     const sequences: Array<{ sequence_name: string }> = await dataSource.query(`
       SELECT sequence_name FROM information_schema.sequences
       WHERE sequence_schema = 'public'
+      AND sequence_name NOT IN ('migrations_id_seq')
     `);
 
     for (const { sequence_name } of sequences) {
