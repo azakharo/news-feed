@@ -56,9 +56,10 @@ export class PostsService {
     const items = hasMore ? results.slice(0, limit) : results;
 
     // Get next cursor from the last item
-    const nextCursor = hasMore && items.length > 0
-      ? items[items.length - 1].cursorId.toString()
-      : null;
+    const nextCursor =
+      hasMore && items.length > 0
+        ? items[items.length - 1].cursorId.toString()
+        : null;
 
     return {
       items,

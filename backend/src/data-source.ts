@@ -1,5 +1,7 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
-import { PostEntity } from './entities/post.entity.js';
+import { PostEntity } from './entities/post.entity';
+
+const isTsNode = !!process[Symbol.for('ts-node.register.instance')];
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -9,9 +11,12 @@ export const dataSourceOptions: DataSourceOptions = {
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_DATABASE || 'news_feed_db',
   entities: [PostEntity],
-  migrations: [],
+  migrations: isTsNode
+    ? ['src/migrations/**/*.ts']
+    : ['dist/migrations/**/*.js'],
+  migrationsTableName: 'migrations',
   synchronize: false,
-  logging: ['query', 'error'], // process.env.NODE_ENV !== 'production',
+  logging: ['query', 'error'],
   migrationsRun: false,
 };
 

@@ -6,10 +6,7 @@ import { PostsModule } from './posts/posts.module';
 import { dataSourceOptions } from './data-source';
 
 @Module({
-  imports: [
-    TypeOrmModule.forRoot(dataSourceOptions),
-    PostsModule,
-  ],
+  imports: [TypeOrmModule.forRoot(dataSourceOptions), PostsModule],
   controllers: [AppController],
   providers: [AppService],
 })
