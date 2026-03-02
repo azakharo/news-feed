@@ -27,22 +27,16 @@ export class PostsService {
     // Search filtering via ILIKE on title and content
     if (search) {
       const searchPattern = `%${search}%`;
+      const searchBrackets = new Brackets((qb2) => {
+        qb2
+          .where('post.title ILIKE :search', { search: searchPattern })
+          .orWhere('post.content ILIKE :search', { search: searchPattern });
+      });
+
       if (cursor) {
-        qb.andWhere(
-          new Brackets((qb2) => {
-            qb2
-              .where('post.title ILIKE :search', { search: searchPattern })
-              .orWhere('post.content ILIKE :search', { search: searchPattern });
-          }),
-        );
+        qb.andWhere(searchBrackets);
       } else {
-        qb.where(
-          new Brackets((qb2) => {
-            qb2
-              .where('post.title ILIKE :search', { search: searchPattern })
-              .orWhere('post.content ILIKE :search', { search: searchPattern });
-          }),
-        );
+        qb.where(searchBrackets);
       }
     }
 
