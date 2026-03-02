@@ -1,0 +1,51 @@
+import {Card} from 'flowbite-react';
+import type {Post} from '../../types/post';
+
+interface PostCardProps {
+  post: Post;
+}
+
+export const PostCard = ({post}: PostCardProps) => {
+  return (
+    <Card className="transition-shadow hover:shadow-md">
+      <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+        {post.title}
+      </h3>
+
+      <p className="mb-3 line-clamp-4 text-gray-700 dark:text-gray-300">
+        {post.content}
+      </p>
+
+      {post.attachments && post.attachments.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {post.attachments.map((attachment, index) => (
+            <div
+              key={index}
+              className="overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
+              style={{aspectRatio: attachment.aspectRatio}}
+            >
+              {attachment.type === 'image' ? (
+                <img
+                  src={attachment.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <video
+                  src={attachment.url}
+                  className="h-full w-full object-cover"
+                  controls
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <time className="mt-3 block text-sm text-gray-500 dark:text-gray-400">
+        {new Date(post.createdAt).toLocaleDateString()}
+      </time>
+    </Card>
+  );
+};
