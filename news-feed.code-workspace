@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "doc"
+		},
+		{
+			"path": "frontend"
 		}
 	],
 	"settings": {}
