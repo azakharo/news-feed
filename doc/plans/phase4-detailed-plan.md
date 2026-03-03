@@ -108,6 +108,57 @@ sequenceDiagram
 
 ---
 
+## Current Implementation Analysis
+
+Before making changes, let's understand the **current implementation issues**:
+
+### PostCard.tsx (Current - WRONG)
+```tsx
+// Line 8-12: NOT using forwardRef - just passing ref as a regular prop
+export const PostCard = ({
+  ref,
+  post,
+}: PostCardProps & {ref?: React.RefObject<HTMLDivElement | null}) => {
+  return (
+    <Card
+      ref={ref}
+      // Line 18: ❌ FIXED HEIGHT - forces all cards to 400px!
+      style={{height: '400px', display: 'flex', flexDirection: 'column'}}
+    >
+      // Line 24: content truncated with line-clamp-3
+      <p className="mb-3 line-clamp-3 ...">
+```
+
+### VirtualFeed.tsx (Current - WRONG)
+```tsx
+// Lines 99-112
+<div
+  data-index={virtualItem.index}
+  style={{
+    // ...
+    height: `${virtualItem.size}px`,  // ❌ Forces estimated size on wrapper!
+    // ...
+  }}
+>
+  {/* ❌ ref is NOT passed to PostCard! */}
+  {post && <PostCard post={post} />}
+</div>
+```
+
+### useVirtualFeed.ts (Current - WRONG)
+```tsx
+// Lines 79-84
+const virtualizer = useWindowVirtualizer({
+  count: items.length,
+  estimateSize: index => estimateSize(index, items[index]),
+  overscan,
+  scrollMargin,
+  // ❌ NO measureElement configuration!
+});
+```
+
+---
+
 ## Implementation Steps
 
 ### Step 1: Create Post Expansion State Hook
@@ -851,11 +902,13 @@ export const VirtualFeed = () => {
                   <div
                     key={post?.id ?? virtualItem.key}
                     data-index={virtualItem.index}
+                    ref={measureElement} // ✅ Connect measureElement for dynamic height
                     style={{
                       position: 'absolute',
                       top: 0,
                       left: 0,
                       width: '100%',
+                      // ⚠️ NO height property - let measureElement determine it
                       transform: `translateY(${virtualItem.start - scrollMargin}px)`,
                     }}
                   >
