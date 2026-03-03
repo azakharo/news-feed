@@ -1,3 +1,4 @@
+import {forwardRef} from 'react';
 import {Card} from 'flowbite-react';
 import type {Post} from '../../types/post';
 
@@ -5,9 +6,18 @@ interface PostCardProps {
   post: Post;
 }
 
-export const PostCard = ({post}: PostCardProps) => {
+// Using forwardRef for Phase 4 measureElement support
+export const PostCard = ({
+  ref,
+  post,
+}: PostCardProps & {ref?: React.RefObject<HTMLDivElement | null>}) => {
   return (
-    <Card className="transition-shadow hover:shadow-md">
+    <Card
+      ref={ref}
+      className="h-full transition-shadow hover:shadow-md"
+      // Fixed height preparation for virtualization
+      style={{minHeight: '380px'}}
+    >
       <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
         {post.title}
       </h3>
@@ -49,3 +59,5 @@ export const PostCard = ({post}: PostCardProps) => {
     </Card>
   );
 };
+
+PostCard.displayName = 'PostCard';
