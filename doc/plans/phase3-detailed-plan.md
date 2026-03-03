@@ -50,7 +50,7 @@ graph TB
     end
 
     subgraph TanStack Virtual
-        Virtualizer[useVirtualizer]
+        Virtualizer[useWindowVirtualizer]
         VirtualItems[getVirtualItems]
         TotalSize[getTotalSize]
     end
@@ -63,6 +63,7 @@ graph TB
     QueryProvider --> VirtualFeed
     VirtualFeed --> UseVirtualFeed
     UseVirtualFeed --> Virtualizer
+    UseVirtualFeed --> ScrollMargin[scrollMargin]
     UseVirtualFeed --> UseInfinitePosts
     UseInfinitePosts --> PostsAPI
     PostsAPI --> Client
@@ -131,7 +132,7 @@ npm install @tanstack/react-virtual
 
 ```typescript
 import { useEffect, useCallback } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 interface UseVirtualFeedOptions<T> {
@@ -150,8 +151,9 @@ interface UseVirtualFeedOptions<T> {
 
 interface UseVirtualFeedReturn<T> {
   // Virtual data
-  virtualItems: ReturnType<ReturnType<typeof useVirtualizer>['getVirtualItems']>;
+  virtualItems: ReturnType<ReturnType<typeof useWindowVirtualizer>['getVirtualItems']>;
   totalSize: number;
+  scrollMargin: number;
 
   // Query data
   items: T[];
@@ -174,7 +176,8 @@ export function useVirtualFeed<T extends { id: string }>({
   queryFn,
   estimateSize = () => DEFAULT_ITEM_HEIGHT,
   overscan = DEFAULT_OVERSCAN,
-}: UseVirtualFeedOptions<T>): UseVirtualFeedReturn<T> {
+  scrollMargin = 0,
+}: UseVirtualFeedOptions<T> & { scrollMargin?: number }): UseVirtualFeedReturn<T> {
   // Infinite query for data
   const {
     data,
@@ -201,12 +204,12 @@ export function useVirtualFeed<T extends { id: string }>({
   // Flatten pages into single array
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
-  // Window scroll virtualizer - no parent element needed
-  const virtualizer = useVirtualizer({
+  // Window scroll virtualizer - uses window as scroll container
+  const virtualizer = useWindowVirtualizer({
     count: items.length,
-    getScrollElement: () => undefined, // Window scroll
     estimateSize: (index) => estimateSize(index, items[index]),
     overscan,
+    scrollMargin,
   });
 
   // Get virtual items
@@ -235,6 +238,7 @@ export function useVirtualFeed<T extends { id: string }>({
   return {
     virtualItems,
     totalSize,
+    scrollMargin,
     items,
     isLoading,
     isError,
@@ -258,7 +262,7 @@ export function useVirtualFeed<T extends { id: string }>({
 #### `frontend/src/components/VirtualFeed/VirtualFeed.tsx`
 
 ```typescript
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'flowbite-react';
 import { HiInformationCircle } from 'react-icons/hi';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -275,10 +279,12 @@ const ITEM_HEIGHT = 400;
 export const VirtualFeed = () => {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const {
     virtualItems,
     totalSize,
+    scrollMargin,
     items: posts,
     isLoading,
     isError,
@@ -296,6 +302,7 @@ export const VirtualFeed = () => {
       }),
     estimateSize: () => ITEM_HEIGHT,
     overscan: 5,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
   });
 
   // Scroll to top on search change
@@ -338,22 +345,14 @@ export const VirtualFeed = () => {
       {/* Virtualized List - Window Scroll */}
       {!isLoading && (
         <>
-          {/* Phantom container for scrollbar */}
-          <div
-            style={{
-              height: `${totalSize}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {/* Visible items container */}
+          {/* List container with ref for scroll margin calculation */}
+          <div ref={listRef}>
+            {/* Phantom container for scrollbar */}
             <div
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
+                height: `${totalSize}px`,
                 width: '100%',
-                transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
+                position: 'relative',
               }}
             >
               {virtualItems.map((virtualItem) => {
@@ -364,8 +363,12 @@ export const VirtualFeed = () => {
                     key={post?.id ?? virtualItem.key}
                     data-index={virtualItem.index}
                     style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
                       height: `${virtualItem.size}px`,
-                      marginBottom: '16px', // Gap between items
+                      transform: `translateY(${virtualItem.start - scrollMargin}px)`,
                     }}
                   >
                     {post && <PostCard post={post} />}
@@ -585,21 +588,33 @@ frontend/
 
 ### 1. Virtualizer Configuration (Window Scroll)
 
-| Option | Value | Reason |
-|--------|-------|--------|
-| `count` | `items.length` | Dynamic based on loaded data |
-| `getScrollElement` | `() => undefined` | Window scroll (native UX) |
-| `estimateSize` | `() => 400` | Fixed height for Phase 3 |
-| `overscan` | `5` | Balance between performance and UX |
+| Option             | Value                     | Reason                             |
+|--------------------|---------------------------|------------------------------------|
+| `count`            | `items.length`            | Dynamic based on loaded data       |
+| `estimateSize`     | `() => 400`               | Fixed height for Phase 3           |
+| `overscan`         | `5`                       | Balance between performance and UX |
+| `scrollMargin`     | `listRef.offsetTop ?? 0`  | Accounts for sticky navbar         |
 
-### 2. Window Scroll vs Container Scroll
+### 2. Window Scroll with useWindowVirtualizer
 
 ```typescript
 // Window scroll - our choice
-getScrollElement: () => undefined
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
+
+const virtualizer = useWindowVirtualizer({
+  count: items.length,
+  estimateSize: () => 400,
+  overscan: 5,
+  scrollMargin: listRef.current?.offsetTop ?? 0, // Adjust for sticky header
+});
 
 // Container scroll - NOT used
-getScrollElement: () => parentRef.current
+import { useVirtualizer } from '@tanstack/react-virtual';
+const virtualizer = useVirtualizer({
+  count: items.length,
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 400,
+});
 ```
 
 Window scroll provides:
@@ -620,12 +635,12 @@ if (itemsFromEnd < 10 && hasNextPage && !isFetchingNextPage) {
 
 ### 4. Scroll Position Management
 
-| Event | Behavior |
-|-------|----------|
-| Search change | `scrollToTop()` - window.scrollTo with smooth behavior |
-| Normal scroll | Position maintained naturally by browser |
-| New items loaded | No jump - virtualizer recalculates offsets |
-| Page refresh | Position lost (can be enhanced later) |
+| Event            | Behavior                                               |
+|------------------|--------------------------------------------------------|
+| Search change    | `scrollToTop()` - window.scrollTo with smooth behavior |
+| Normal scroll    | Position maintained naturally by browser               |
+| New items loaded | No jump - virtualizer recalculates offsets             |
+| Page refresh     | Position lost (can be enhanced later)                  |
 
 ### 5. Performance Optimizations
 
@@ -665,16 +680,16 @@ if (itemsFromEnd < 10 && hasNextPage && !isFetchingNextPage) {
 
 2. **Test scenarios:**
 
-   | Test | Expected Result |
-   |------|-----------------|
-   | Initial load | 5 skeleton loaders → posts appear |
-   | Open DevTools | ~10-15 DOM nodes with data-index |
-   | Scroll down | Auto-fetch triggers, loading indicator shows |
-   | Fast scroll | No white spots (overscan working) |
-   | Search input | Scroll resets to top, new results |
-   | Clear search | All posts shown again |
-   | Scroll to end | "End of feed" message appears |
-   | Check scrollbar | Native browser scrollbar, accurate height |
+   | Test            | Expected Result                              |
+   |-----------------|----------------------------------------------|
+   | Initial load    | 5 skeleton loaders → posts appear            |
+   | Open DevTools   | ~10-15 DOM nodes with data-index             |
+   | Scroll down     | Auto-fetch triggers, loading indicator shows |
+   | Fast scroll     | No white spots (overscan working)            |
+   | Search input    | Scroll resets to top, new results            |
+   | Clear search    | All posts shown again                        |
+   | Scroll to end   | "End of feed" message appears                |
+   | Check scrollbar | Native browser scrollbar, accurate height    |
 
 ### Performance Testing
 
@@ -709,11 +724,11 @@ Phase 3 prepares the architecture for dynamic heights:
 
 ```typescript
 // What Phase 4 will add:
-const virtualizer = useVirtualizer({
+const virtualizer = useWindowVirtualizer({
   count: items.length,
-  getScrollElement: () => undefined,
   estimateSize: (index) => estimatePostHeight(items[index]),
   measureElement: (el) => el.getBoundingClientRect().height,
+  scrollMargin: listRef.current?.offsetTop ?? 0,
   // ... rest
 });
 
