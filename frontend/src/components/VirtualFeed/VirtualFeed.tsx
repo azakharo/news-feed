@@ -1,18 +1,15 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {Alert} from 'flowbite-react';
 import {HiInformationCircle} from 'react-icons/hi';
-import {useDebounce} from '../../hooks/useDebounce';
 import {usePostExpansion} from '../../hooks/usePostExpansion';
 import {useVirtualFeed} from '../../hooks/useVirtualFeed';
 import {postsApi} from '../../api/posts';
 import {PostCard} from '../PostCard/PostCard';
-import {SearchInput} from '../SearchInput/SearchInput';
 import {LoadingIndicator} from '../LoadingIndicator/LoadingIndicator';
 import {PostSkeleton} from '../Skeleton/PostSkeleton';
 import {createEstimateSizeFunction} from '../../utils/estimatePostSize';
 import type {Post} from '../../types/post';
 
-const SEARCH_DEBOUNCE_MS = 500;
 const SKELETON_KEYS = [
   'skeleton-1',
   'skeleton-2',
@@ -21,9 +18,11 @@ const SKELETON_KEYS = [
   'skeleton-5',
 ];
 
-export const VirtualFeed = () => {
-  const [searchInput, setSearchInput] = useState('');
-  const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+interface VirtualFeedProps {
+  searchQuery?: string;
+}
+
+export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
@@ -61,12 +60,12 @@ export const VirtualFeed = () => {
     scrollToTop,
     measureElement,
   } = useVirtualFeed<Post>({
-    queryKey: ['posts', {search: debouncedSearch}],
+    queryKey: ['posts', {search: searchQuery}],
     queryFn: ({pageParam}) =>
       postsApi.getPosts({
         limit: 20,
         cursor: pageParam,
-        search: debouncedSearch || undefined,
+        search: searchQuery || undefined,
       }),
     estimateSize,
     overscan: 5,
@@ -76,7 +75,7 @@ export const VirtualFeed = () => {
   // Scroll to top on search change
   useEffect(() => {
     scrollToTop();
-  }, [debouncedSearch, scrollToTop]);
+  }, [searchQuery, scrollToTop]);
 
   // Handle expand toggle - need to remeasure the item
   const handleToggleExpand = useCallback(
@@ -90,15 +89,6 @@ export const VirtualFeed = () => {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-4">
-      {/* Search Header */}
-      <div className="mb-6">
-        <SearchInput
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search posts by title or content..."
-        />
-      </div>
-
       {/* Error State */}
       {isError && (
         <Alert color="failure" icon={HiInformationCircle} className="mb-4">
@@ -152,7 +142,7 @@ export const VirtualFeed = () => {
                         post={post}
                         isExpanded={isExpanded(post.id)}
                         onToggleExpand={() => handleToggleExpand(post.id)}
-                        searchQuery={debouncedSearch}
+                        searchQuery={searchQuery}
                       />
                     )}
                   </div>
@@ -181,7 +171,7 @@ export const VirtualFeed = () => {
       {!isLoading && posts.length === 0 && !isError && (
         <div className="py-12 text-center">
           <p className="text-gray-500 dark:text-gray-400">
-            {debouncedSearch
+            {searchQuery
               ? 'No posts found matching your search.'
               : 'No posts available.'}
           </p>
