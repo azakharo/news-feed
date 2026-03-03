@@ -27,9 +27,9 @@ export const PostCard = ({
 
       {post.attachments && post.attachments.length > 0 && (
         <div className="mt-2 min-h-0 flex-1 overflow-hidden">
-          {post.attachments.slice(0, 1).map((attachment, index) => (
+          {post.attachments.slice(0, 1).map(attachment => (
             <div
-              key={index}
+              key={attachment.url}
               className="h-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
             >
               {attachment.type === 'image' ? (

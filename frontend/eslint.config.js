@@ -9,7 +9,7 @@ import reactX from 'eslint-plugin-react-x'
 import reactDom from 'eslint-plugin-react-dom'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.flowbite-react']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

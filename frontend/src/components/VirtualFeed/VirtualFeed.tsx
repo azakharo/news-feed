@@ -9,6 +9,13 @@ import {PostSkeleton} from '../Skeleton/PostSkeleton';
 import type {Post} from '../../types/post';
 
 const ITEM_HEIGHT = 416; // 400px card + 16px gap
+const SKELETON_KEYS = [
+  'skeleton-1',
+  'skeleton-2',
+  'skeleton-3',
+  'skeleton-4',
+  'skeleton-5',
+];
 
 interface VirtualFeedProps {
   searchQuery: string;
@@ -66,8 +73,8 @@ export const VirtualFeed = ({searchQuery}: VirtualFeedProps) => {
       {/* Initial Loading State */}
       {isLoading && (
         <div className="space-y-4">
-          {Array.from({length: 5}).map((_, i) => (
-            <PostSkeleton key={i} />
+          {SKELETON_KEYS.map(key => (
+            <PostSkeleton key={key} />
           ))}
         </div>
       )}

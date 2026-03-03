@@ -9,6 +9,13 @@ import {SearchInput} from '../SearchInput/SearchInput';
 import {LoadMore} from '../LoadMore/LoadMore';
 
 const SEARCH_DEBOUNCE_MS = 500;
+const SKELETON_KEYS = [
+  'skeleton-1',
+  'skeleton-2',
+  'skeleton-3',
+  'skeleton-4',
+  'skeleton-5',
+];
 
 export const FeedList = () => {
   const [searchInput, setSearchInput] = useState('');
@@ -51,8 +58,8 @@ export const FeedList = () => {
       {/* Initial Loading State */}
       {isLoading && (
         <div className="space-y-4">
-          {Array.from({length: 5}).map((_, i) => (
-            <PostSkeleton key={i} />
+          {SKELETON_KEYS.map(key => (
+            <PostSkeleton key={key} />
           ))}
         </div>
       )}
