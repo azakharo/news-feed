@@ -1,36 +1,81 @@
+import {forwardRef, useMemo} from 'react';
 import {Card} from 'flowbite-react';
 import type {Post} from '../../types/post';
+import {HighlightedText} from '../HighlightedText/HighlightedText';
+import {ExpandButton} from '../ExpandButton/ExpandButton';
 
 interface PostCardProps {
   post: Post;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  searchQuery?: string;
 }
 
-// Using ref for Phase 4 measureElement support
+const CHARS_PER_LINE = 80;
+const MAX_COLLAPSED_LINES = 4;
+
+/**
+ * Post card component with dynamic height support.
+ * Uses forwardRef for measureElement integration.
+ */
 export const PostCard = ({
   ref,
   post,
+  isExpanded,
+  onToggleExpand,
+  searchQuery = '',
 }: PostCardProps & {ref?: React.RefObject<HTMLDivElement | null>}) => {
+  // Calculate line count for expand button visibility
+  const totalLines = useMemo(
+    () => Math.ceil(post.content.length / CHARS_PER_LINE),
+    [post.content],
+  );
+
+  // Content class based on expansion state
+  const contentClassName = isExpanded
+    ? 'mb-3 text-gray-700 dark:text-gray-300'
+    : 'mb-3 text-gray-700 dark:text-gray-300 line-clamp-4';
+
   return (
     <Card
       ref={ref}
-      className="overflow-hidden transition-shadow hover:shadow-md"
-      // Fixed height for virtualization - content must fit within this
-      style={{height: '400px', display: 'flex', flexDirection: 'column'}}
+      className="transition-shadow hover:shadow-md"
+      data-post-id={post.id}
     >
-      <h3 className="mb-2 flex-shrink-0 text-lg font-semibold text-gray-900 dark:text-white">
-        {post.title}
+      {/* Title with optional highlighting */}
+      <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+        {searchQuery ? (
+          <HighlightedText text={post.title} searchQuery={searchQuery} />
+        ) : (
+          post.title
+        )}
       </h3>
 
-      <p className="mb-3 line-clamp-3 flex-shrink-0 text-gray-700 dark:text-gray-300">
-        {post.content}
-      </p>
+      {/* Content with optional highlighting and expand/collapse */}
+      <div className={contentClassName}>
+        {searchQuery ? (
+          <HighlightedText text={post.content} searchQuery={searchQuery} />
+        ) : (
+          post.content
+        )}
+      </div>
 
+      {/* Expand/Collapse Button */}
+      <ExpandButton
+        isExpanded={isExpanded}
+        onToggle={onToggleExpand}
+        collapsedLines={MAX_COLLAPSED_LINES}
+        totalLines={totalLines}
+      />
+
+      {/* Attachments with aspect-ratio placeholders */}
       {post.attachments && post.attachments.length > 0 && (
-        <div className="mt-2 min-h-0 flex-1 overflow-hidden">
-          {post.attachments.slice(0, 1).map(attachment => (
+        <div className="mt-3 space-y-3">
+          {post.attachments.map((attachment, index) => (
             <div
-              key={attachment.url}
-              className="h-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
+              key={index}
+              className="overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
+              style={{aspectRatio: attachment.aspectRatio}}
             >
               {attachment.type === 'image' ? (
                 <img
@@ -44,6 +89,7 @@ export const PostCard = ({
                   src={attachment.url}
                   className="h-full w-full object-cover"
                   controls
+                  preload="metadata"
                 />
               )}
             </div>
@@ -51,9 +97,12 @@ export const PostCard = ({
         </div>
       )}
 
-      <time className="mt-3 block flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">
+      {/* Date */}
+      <time className="mt-3 block text-sm text-gray-500 dark:text-gray-400">
         {new Date(post.createdAt).toLocaleDateString()}
       </time>
     </Card>
   );
 };
+
+PostCard.displayName = 'PostCard';

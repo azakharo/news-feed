@@ -35,6 +35,8 @@ interface UseVirtualFeedReturn<T> {
   // Actions
   fetchNextPage: () => Promise<unknown>;
   scrollToTop: () => void;
+  measureElement: (el: HTMLElement | null) => void;
+  resizeItem: (index: number, size: number) => void;
 }
 
 const DEFAULT_ITEM_HEIGHT = 400;
@@ -81,6 +83,11 @@ export function useVirtualFeed<T extends {id: string}>({
     estimateSize: index => estimateSize(index, items[index]),
     overscan,
     scrollMargin,
+    // Measure element using getBoundingClientRect
+    measureElement: el => {
+      if (!el) return 0;
+      return el.getBoundingClientRect().height;
+    },
   });
 
   // Get virtual items
@@ -118,5 +125,7 @@ export function useVirtualFeed<T extends {id: string}>({
     hasNextPage,
     fetchNextPage,
     scrollToTop,
+    measureElement: virtualizer.measureElement,
+    resizeItem: virtualizer.resizeItem,
   };
 }
