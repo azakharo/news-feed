@@ -1,21 +1,20 @@
 import {useState, useEffect, useRef} from 'react';
 import {Alert} from 'flowbite-react';
 import {HiInformationCircle} from 'react-icons/hi';
-import {useDebounce} from '../../hooks/useDebounce';
 import {useVirtualFeed} from '../../hooks/useVirtualFeed';
 import {postsApi} from '../../api/posts';
 import {PostCard} from '../PostCard/PostCard';
-import {SearchInput} from '../SearchInput/SearchInput';
 import {LoadingIndicator} from '../LoadingIndicator/LoadingIndicator';
 import {PostSkeleton} from '../Skeleton/PostSkeleton';
 import type {Post} from '../../types/post';
 
-const SEARCH_DEBOUNCE_MS = 500;
-const ITEM_HEIGHT = 400;
+const ITEM_HEIGHT = 416; // 400px card + 16px gap
 
-export const VirtualFeed = () => {
-  const [searchInput, setSearchInput] = useState('');
-  const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+interface VirtualFeedProps {
+  searchQuery: string;
+}
+
+export const VirtualFeed = ({searchQuery}: VirtualFeedProps) => {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
@@ -37,12 +36,12 @@ export const VirtualFeed = () => {
     hasNextPage,
     scrollToTop,
   } = useVirtualFeed<Post>({
-    queryKey: ['posts', {search: debouncedSearch}],
+    queryKey: ['posts', {search: searchQuery}],
     queryFn: ({pageParam}) =>
       postsApi.getPosts({
         limit: 20,
         cursor: pageParam,
-        search: debouncedSearch || undefined,
+        search: searchQuery || undefined,
       }),
     estimateSize: () => ITEM_HEIGHT,
     overscan: 5,
@@ -52,19 +51,10 @@ export const VirtualFeed = () => {
   // Scroll to top on search change
   useEffect(() => {
     scrollToTop();
-  }, [debouncedSearch, scrollToTop]);
+  }, [searchQuery, scrollToTop]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-4">
-      {/* Search Header */}
-      <div className="mb-6">
-        <SearchInput
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search posts by title or content..."
-        />
-      </div>
-
       {/* Error State */}
       {isError && (
         <Alert color="failure" icon={HiInformationCircle} className="mb-4">
@@ -109,6 +99,7 @@ export const VirtualFeed = () => {
                       width: '100%',
                       height: `${virtualItem.size}px`,
                       transform: `translateY(${virtualItem.start - scrollMargin}px)`,
+                      paddingBottom: '16px', // Gap between cards
                     }}
                   >
                     {post && <PostCard post={post} />}
@@ -138,7 +129,7 @@ export const VirtualFeed = () => {
       {!isLoading && posts.length === 0 && !isError && (
         <div className="py-12 text-center">
           <p className="text-gray-500 dark:text-gray-400">
-            {debouncedSearch
+            {searchQuery
               ? 'No posts found matching your search.'
               : 'No posts available.'}
           </p>
