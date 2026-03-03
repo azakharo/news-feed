@@ -762,6 +762,42 @@ const virtualizer = useWindowVirtualizer({
 
 **Solution:** Ensure `sticky top-0 z-50` classes on Navbar
 
+### Issue: New items not appearing at top of feed
+
+**Problem:** With `staleTime: 1000 * 60 * 5` (5 minutes), cached data is considered "fresh" even when new items are added to the feed. Search works correctly (different query key), but scrolling won't show new items at the top automatically.
+
+**Solution Options:**
+
+| Option | Implementation | Trade-off |
+|--------|---------------|-----------|
+| **1. Reduce staleTime** | `staleTime: 1000 * 30` (30 seconds) | More frequent refetches, fresher data |
+| **2. Add refresh on mount** | `refetchOnMount: 'always'` | Refetch when user returns to feed |
+| **3. Enable window focus refetch** | `refetchOnWindowFocus: true` | Refresh when user switches back to tab |
+| **4. New items banner** | Background polling + UI indicator | Best UX, more complex implementation |
+
+**Recommended Configuration:**
+
+```typescript
+// Option A: Simple approach - shorter stale time
+useInfiniteQuery({
+  queryKey: ['posts', { search: debouncedSearch }],
+  queryFn,
+  staleTime: 1000 * 30,        // 30 seconds instead of 5 minutes
+  refetchOnWindowFocus: true,  // Refresh on tab switch
+  refetchOnMount: 'always',    // Refresh when component mounts
+});
+
+// Option B: New items banner (Phase 3.5 enhancement)
+// Add polling hook to detect new items
+const { data: newestPost } = useQuery({
+  queryKey: ['posts-newest'],
+  queryFn: () => postsApi.getNewestPost(),
+  refetchInterval: 30000, // Check every 30 seconds
+});
+
+// Show banner when newestPost.id differs from first cached post
+```
+
 ---
 
 ## Resources
