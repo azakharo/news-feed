@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {VirtualFeed} from './components/VirtualFeed/VirtualFeed';
-import {SearchInput} from './components/SearchInput/SearchInput';
+import {VirtualFeed} from './components/VirtualFeed';
+import {SearchInput} from './components/SearchInput';
 import {useDebounce} from './hooks/useDebounce';
 
 const SEARCH_DEBOUNCE_MS = 500;

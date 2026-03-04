@@ -1,8 +1,8 @@
 import {useMemo} from 'react';
 import {Card} from 'flowbite-react';
 import type {Post} from '../../types/post';
-import {HighlightedText} from '../HighlightedText/HighlightedText';
-import {ExpandButton} from '../ExpandButton/ExpandButton';
+import {HighlightedText} from '../HighlightedText';
+import {ExpandButton} from '../ExpandButton';
 
 interface PostCardProps {
   post: Post;
