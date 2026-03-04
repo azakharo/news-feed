@@ -61,7 +61,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
     hasNextPage,
     scrollToTop,
     measureElement,
-    refetch,
+    resetAndRefetch,
   } = useVirtualFeed<Post>({
     queryKey: ['posts', {search: searchQuery}],
     queryFn: ({pageParam}) =>
@@ -87,9 +87,9 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
 
   // Handle refresh when banner is clicked
   const handleRefreshNewItems = useCallback(() => {
-    void refetch();
+    void resetAndRefetch();
     scrollToTop();
-  }, [refetch, scrollToTop]);
+  }, [resetAndRefetch, scrollToTop]);
 
   // Scroll to top on search change
   useEffect(() => {

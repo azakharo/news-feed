@@ -1,6 +1,6 @@
 import {useEffect, useCallback} from 'react';
 import {useWindowVirtualizer} from '@tanstack/react-virtual';
-import {useInfiniteQuery} from '@tanstack/react-query';
+import {useInfiniteQuery, useQueryClient} from '@tanstack/react-query';
 
 interface UseVirtualFeedOptions<T> {
   // Query options
@@ -38,6 +38,7 @@ interface UseVirtualFeedReturn<T> {
   measureElement: (el: HTMLElement | null) => void;
   resizeItem: (index: number, size: number) => void;
   refetch: () => Promise<unknown>;
+  resetAndRefetch: () => Promise<unknown>;
 }
 
 const DEFAULT_ITEM_HEIGHT = 400;
@@ -52,6 +53,8 @@ export function useVirtualFeed<T extends {id: string}>({
 }: UseVirtualFeedOptions<T> & {
   scrollMargin?: number;
 }): UseVirtualFeedReturn<T> {
+  const queryClient = useQueryClient();
+
   // Infinite query for data
   const {
     data,
@@ -115,6 +118,12 @@ export function useVirtualFeed<T extends {id: string}>({
     window.scrollTo({top: 0, behavior: 'smooth'});
   }, []);
 
+  // Reset and refetch - clears cache first to handle cursor invalidation
+  const resetAndRefetch = useCallback(async () => {
+    await queryClient.resetQueries({queryKey, exact: false});
+    return refetch();
+  }, [queryClient, queryKey, refetch]);
+
   return {
     virtualItems,
     totalSize,
@@ -130,5 +139,6 @@ export function useVirtualFeed<T extends {id: string}>({
     measureElement: virtualizer.measureElement,
     resizeItem: virtualizer.resizeItem,
     refetch,
+    resetAndRefetch,
   };
 }
