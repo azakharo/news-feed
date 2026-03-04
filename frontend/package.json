@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . ",
-    "ts": "tsc --noEmit"
+    "ts": "tsc --build --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "5.90.21",
