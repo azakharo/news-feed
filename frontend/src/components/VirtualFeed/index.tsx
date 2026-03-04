@@ -80,9 +80,22 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   // Handle expand toggle - need to remeasure the item
   const handleToggleExpand = useCallback(
     (postId: string) => {
+      // Save the current scroll position before expansion
+      const scrollYBefore = window.scrollY;
+
       toggle(postId);
       // The virtualizer will automatically remeasure on next render
       // via the measureElement ref callback
+
+      // Restore scroll position after expansion to prevent unwanted jumps
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (window.scrollY !== scrollYBefore) {
+            window.scrollTo({top: scrollYBefore, behavior: 'auto'});
+          }
+        });
+      });
     },
     [toggle],
   );
@@ -110,7 +123,8 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
       {!isLoading && (
         <>
           {/* List container with ref for scroll margin calculation */}
-          <div ref={listRef}>
+          {/* overflow-anchor: none prevents browser scroll anchoring that causes jumps */}
+          <div ref={listRef} style={{overflowAnchor: 'none'}}>
             {/* Phantom container for scrollbar */}
             <div
               style={{
