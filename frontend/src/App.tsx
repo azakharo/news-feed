@@ -15,7 +15,7 @@ function App() {
       <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto max-w-2xl px-4 py-3">
           <div className="flex items-center gap-4">
-            <span className="flex-shrink-0 self-center text-xl font-semibold whitespace-nowrap dark:text-white">
+            <span className="shrink-0 self-center text-xl font-semibold whitespace-nowrap dark:text-white">
               News Feed
             </span>
             <div className="flex-1">
