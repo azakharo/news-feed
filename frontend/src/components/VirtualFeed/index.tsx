@@ -138,20 +138,33 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
         </div>
       )}
 
-      {/* New Items Banner */}
-      {!isLoading && newItemsCount > 0 && (
-        <NewItemsBanner
-          count={newItemsCount}
-          onRefresh={handleRefreshNewItems}
-        />
-      )}
-
       {/* Virtualized List - Window Scroll with Dynamic Heights */}
       {!isLoading && (
         <>
+          {/* New Items Banner - fixed position so it stays visible and doesn't affect scroll */}
+          {newItemsCount > 0 && (
+            <div
+              className="fixed top-[82px] right-0 left-0 z-50 mx-auto max-w-2xl px-4"
+              style={{pointerEvents: 'none'}}
+            >
+              <div style={{pointerEvents: 'auto'}}>
+                <NewItemsBanner
+                  count={newItemsCount}
+                  onRefresh={handleRefreshNewItems}
+                />
+              </div>
+            </div>
+          )}
+
           {/* List container with ref for scroll margin calculation */}
           {/* overflow-anchor: none prevents browser scroll anchoring that causes jumps */}
-          <div ref={listRef} style={{overflowAnchor: 'none'}}>
+          <div
+            ref={listRef}
+            style={{
+              overflowAnchor: 'none',
+              marginTop: newItemsCount > 0 ? '56px' : '0',
+            }}
+          >
             {/* Phantom container for scrollbar */}
             <div
               style={{
