@@ -1,4 +1,4 @@
-import {forwardRef, useMemo} from 'react';
+import {useMemo} from 'react';
 import {Card} from 'flowbite-react';
 import type {Post} from '../../types/post';
 import {HighlightedText} from '../HighlightedText/HighlightedText';
