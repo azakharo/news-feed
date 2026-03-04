@@ -13,3 +13,13 @@ export interface GetPostsParams {
 }
 
 export type PostsResponse = PaginatedResponse<Post>;
+
+export interface NewPostsCountResponse {
+  count: number;
+  latestCursor: string | null;
+}
+
+export interface GetNewCountParams {
+  sinceCursor: string;
+  search?: string;
+}

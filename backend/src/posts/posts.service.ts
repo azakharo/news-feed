@@ -4,6 +4,7 @@ import { Repository, Brackets } from 'typeorm';
 import { PostEntity } from '../entities/post.entity';
 import { GetPostsDto } from './dto/get-posts.dto';
 import { PostResponseDto } from './dto/post-response.dto';
+import { GetNewCountDto } from './dto/get-new-count.dto';
 
 @Injectable()
 export class PostsService {
@@ -59,6 +60,45 @@ export class PostsService {
       items,
       nextCursor,
       hasMore,
+    };
+  }
+
+  async getNewCount(
+    query: GetNewCountDto,
+  ): Promise<{ count: number; latestCursor: string | null }> {
+    const { sinceCursor, search } = query;
+    const sinceCursorId = parseInt(sinceCursor, 10);
+
+    if (isNaN(sinceCursorId)) {
+      return { count: 0, latestCursor: null };
+    }
+
+    const qb = this.postRepository.createQueryBuilder('post');
+
+    // Count posts with cursorId greater than sinceCursor
+    qb.where('post.cursorId > :sinceCursorId', { sinceCursorId });
+
+    // Search filtering via ILIKE on title and content (same logic as findPosts)
+    if (search) {
+      const searchPattern = `%${search}%`;
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('post.title ILIKE :search', { search: searchPattern })
+            .orWhere('post.content ILIKE :search', { search: searchPattern });
+        }),
+      );
+    }
+
+    // Get count and max cursorId
+    const result = await qb
+      .select('COUNT(*)', 'count')
+      .addSelect('MAX(post.cursorId)', 'latestCursor')
+      .getRawOne<{ count: string; latestCursor: string | null }>();
+
+    return {
+      count: parseInt(result?.count || '0', 10),
+      latestCursor: result?.latestCursor || null,
     };
   }
 }

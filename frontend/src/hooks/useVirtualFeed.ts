@@ -37,6 +37,7 @@ interface UseVirtualFeedReturn<T> {
   scrollToTop: () => void;
   measureElement: (el: HTMLElement | null) => void;
   resizeItem: (index: number, size: number) => void;
+  refetch: () => Promise<unknown>;
 }
 
 const DEFAULT_ITEM_HEIGHT = 400;
@@ -60,6 +61,7 @@ export function useVirtualFeed<T extends {id: string}>({
     fetchNextPage,
     isFetchingNextPage,
     hasNextPage,
+    refetch,
   } = useInfiniteQuery({
     queryKey,
     queryFn,
@@ -127,5 +129,6 @@ export function useVirtualFeed<T extends {id: string}>({
     scrollToTop,
     measureElement: virtualizer.measureElement,
     resizeItem: virtualizer.resizeItem,
+    refetch,
   };
 }

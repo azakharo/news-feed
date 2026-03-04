@@ -3,10 +3,12 @@ import {Alert} from 'flowbite-react';
 import {HiInformationCircle} from 'react-icons/hi';
 import {usePostExpansion} from '../../hooks/usePostExpansion';
 import {useVirtualFeed} from '../../hooks/useVirtualFeed';
+import {useNewItemsPoller} from '../../hooks/useNewItemsPoller';
 import {postsApi} from '../../api/posts';
 import {PostCard} from '../PostCard';
 import {LoadingIndicator} from '../LoadingIndicator';
 import {PostSkeleton} from '../Skeleton/PostSkeleton';
+import {NewItemsBanner} from '../NewItemsBanner';
 import {createEstimateSizeFunction} from '../../utils/estimatePostSize';
 import type {Post} from '../../types/post';
 
@@ -59,6 +61,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
     hasNextPage,
     scrollToTop,
     measureElement,
+    refetch,
   } = useVirtualFeed<Post>({
     queryKey: ['posts', {search: searchQuery}],
     queryFn: ({pageParam}) =>
@@ -71,6 +74,22 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
     overscan: 5,
     scrollMargin,
   });
+
+  // Get first post's cursor for polling new items
+  const firstPostCursor = posts.length > 0 ? String(posts[0].cursorId) : null;
+
+  // Poll for new items
+  const {newItemsCount} = useNewItemsPoller({
+    sinceCursor: firstPostCursor,
+    searchQuery,
+    pollingInterval: 30000,
+  });
+
+  // Handle refresh when banner is clicked
+  const handleRefreshNewItems = useCallback(() => {
+    void refetch();
+    scrollToTop();
+  }, [refetch, scrollToTop]);
 
   // Scroll to top on search change
   useEffect(() => {
@@ -117,6 +136,14 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
             <PostSkeleton key={key} />
           ))}
         </div>
+      )}
+
+      {/* New Items Banner */}
+      {!isLoading && newItemsCount > 0 && (
+        <NewItemsBanner
+          count={newItemsCount}
+          onRefresh={handleRefreshNewItems}
+        />
       )}
 
       {/* Virtualized List - Window Scroll with Dynamic Heights */}
