@@ -14,7 +14,7 @@ export const NewItemsBanner: React.FC<NewItemsBannerProps> = ({
 
   return (
     <div
-      className="sticky top-0 z-50 w-full cursor-pointer bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3 text-white shadow-lg transition-all duration-300 ease-in-out hover:from-blue-700 hover:to-blue-600"
+      className="sticky top-0 z-50 w-full cursor-pointer bg-linear-to-r from-blue-600 to-blue-500 px-4 py-3 text-white shadow-lg transition-all duration-300 ease-in-out hover:from-blue-700 hover:to-blue-600"
       onClick={onRefresh}
       role="button"
       tabIndex={0}
