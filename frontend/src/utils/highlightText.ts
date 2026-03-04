@@ -70,7 +70,8 @@ export function renderHighlightedText(
       return createElement(
         'mark',
         {
-          key: index,
+          // eslint-disable-next-line react-x/no-array-index-key
+          key: `${index}_${segment.text}`,
           className: highlightClassName,
         },
         segment.text,

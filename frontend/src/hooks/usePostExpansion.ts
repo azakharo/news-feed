@@ -5,7 +5,9 @@ import {useCallback, useState} from 'react';
  * Uses post IDs to track which posts are expanded.
  */
 export function usePostExpansion() {
-  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const isExpanded = useCallback(
     (postId: string) => expandedPosts.has(postId),
