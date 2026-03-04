@@ -1,35 +1,13 @@
-import {useState, useCallback} from 'react';
+import {useState} from 'react';
 import {VirtualFeed} from './components/VirtualFeed';
 import {SearchInput} from './components/SearchInput';
-import {NewItemsBanner} from './components/NewItemsBanner';
 import {useDebounce} from './hooks/useDebounce';
-import {useNewItemsPoller} from './hooks/useNewItemsPoller';
 
 const SEARCH_DEBOUNCE_MS = 500;
 
 function App() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
-
-  // State for new items polling
-  const [firstPostCursor, setFirstPostCursor] = useState<string | null>(null);
-  const [refreshCallbacks, setRefreshCallbacks] = useState<{
-    refetch: () => void;
-    scrollToTop: () => void;
-  } | null>(null);
-
-  // Poll for new items
-  const {newItemsCount} = useNewItemsPoller({
-    sinceCursor: firstPostCursor,
-    searchQuery: debouncedSearch,
-    pollingInterval: 30000,
-  });
-
-  // Handle refresh when banner is clicked
-  const handleRefreshNewItems = useCallback(() => {
-    refreshCallbacks?.refetch();
-    refreshCallbacks?.scrollToTop();
-  }, [refreshCallbacks]);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -47,22 +25,12 @@ function App() {
                 placeholder="Search posts..."
               />
             </div>
-            {/* New Items Banner - right corner */}
-            <NewItemsBanner
-              count={newItemsCount}
-              onRefresh={handleRefreshNewItems}
-              variant="compact"
-            />
           </div>
         </div>
       </nav>
 
       {/* Main content area - window scrollable */}
-      <VirtualFeed
-        searchQuery={debouncedSearch}
-        onFirstCursorChange={setFirstPostCursor}
-        onRefreshCallbacksReady={setRefreshCallbacks}
-      />
+      <VirtualFeed searchQuery={debouncedSearch} />
     </main>
   );
 }

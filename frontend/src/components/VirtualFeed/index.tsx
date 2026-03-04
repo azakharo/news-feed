@@ -3,10 +3,12 @@ import {Alert} from 'flowbite-react';
 import {HiInformationCircle} from 'react-icons/hi';
 import {usePostExpansion} from '../../hooks/usePostExpansion';
 import {useVirtualFeed} from '../../hooks/useVirtualFeed';
+import {useNewItemsPoller} from '../../hooks/useNewItemsPoller';
 import {postsApi} from '../../api/posts';
 import {PostCard} from '../PostCard';
 import {LoadingIndicator} from '../LoadingIndicator';
 import {PostSkeleton} from '../Skeleton/PostSkeleton';
+import {NewItemsBanner} from '../NewItemsBanner';
 import {createEstimateSizeFunction} from '../../utils/estimatePostSize';
 import type {Post} from '../../types/post';
 
@@ -20,18 +22,9 @@ const SKELETON_KEYS = [
 
 interface VirtualFeedProps {
   searchQuery?: string;
-  onFirstCursorChange?: (cursor: string | null) => void;
-  onRefreshCallbacksReady?: (callbacks: {
-    refetch: () => void;
-    scrollToTop: () => void;
-  }) => void;
 }
 
-export const VirtualFeed = ({
-  searchQuery = '',
-  onFirstCursorChange,
-  onRefreshCallbacksReady,
-}: VirtualFeedProps) => {
+export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
@@ -85,18 +78,18 @@ export const VirtualFeed = ({
   // Get first post's cursor for polling new items
   const firstPostCursor = posts.length > 0 ? String(posts[0].cursorId) : null;
 
-  // Notify parent when first cursor changes
-  useEffect(() => {
-    onFirstCursorChange?.(firstPostCursor);
-  }, [firstPostCursor, onFirstCursorChange]);
+  // Poll for new items
+  const {newItemsCount} = useNewItemsPoller({
+    sinceCursor: firstPostCursor,
+    searchQuery,
+    pollingInterval: 30000,
+  });
 
-  // Notify parent when refresh callbacks are ready
-  useEffect(() => {
-    onRefreshCallbacksReady?.({
-      refetch: () => void refetch(),
-      scrollToTop,
-    });
-  }, [refetch, scrollToTop, onRefreshCallbacksReady]);
+  // Handle refresh when banner is clicked
+  const handleRefreshNewItems = useCallback(() => {
+    void refetch();
+    scrollToTop();
+  }, [refetch, scrollToTop]);
 
   // Scroll to top on search change
   useEffect(() => {
@@ -143,6 +136,14 @@ export const VirtualFeed = ({
             <PostSkeleton key={key} />
           ))}
         </div>
+      )}
+
+      {/* New Items Banner */}
+      {!isLoading && newItemsCount > 0 && (
+        <NewItemsBanner
+          count={newItemsCount}
+          onRefresh={handleRefreshNewItems}
+        />
       )}
 
       {/* Virtualized List - Window Scroll with Dynamic Heights */}
