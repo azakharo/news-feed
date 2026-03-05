@@ -71,9 +71,10 @@ export const PostCard = ({
       {/* Attachments with aspect-ratio placeholders */}
       {post.attachments && post.attachments.length > 0 && (
         <div className="mt-3 space-y-3">
-          {post.attachments.map(attachment => (
+          {post.attachments.map((attachment, attachmentIndex) => (
             <div
-              key={attachment.url}
+              // eslint-disable-next-line react-x/no-array-index-key
+              key={`${attachmentIndex}_${attachment.url}`}
               className="overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
               style={{aspectRatio: attachment.aspectRatio}}
             >
