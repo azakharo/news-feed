@@ -88,7 +88,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   const firstPostCursor = posts.length > 0 ? String(posts[0].cursorId) : null;
 
   // Poll for new items
-  const {newItemsCount} = useNewItemsPoller({
+  const {newItemsCount, showBanner, dismissBanner} = useNewItemsPoller({
     sinceCursor: firstPostCursor,
     searchQuery,
     pollingInterval: 30000,
@@ -151,7 +151,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
       {!isLoading && (
         <>
           {/* New Items Banner - fixed position so it stays visible and doesn't affect scroll */}
-          {newItemsCount > 0 && (
+          {showBanner && (
             <div
               className="fixed top-[82px] right-0 left-0 z-50 mx-auto max-w-2xl px-4"
               style={{pointerEvents: 'none'}}
@@ -160,6 +160,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
                 <NewItemsBanner
                   count={newItemsCount}
                   onRefresh={handleRefreshNewItems}
+                  onDismiss={dismissBanner}
                 />
               </div>
             </div>
@@ -171,7 +172,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
             ref={listRef}
             style={{
               overflowAnchor: 'none',
-              marginTop: newItemsCount > 0 ? '56px' : '0',
+              marginTop: showBanner ? '56px' : '0',
             }}
           >
             {/* Phantom container for scrollbar */}

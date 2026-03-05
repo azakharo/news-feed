@@ -1,3 +1,4 @@
+import {useState, useCallback, useMemo} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {postsApi} from '../api/posts';
 import type {NewPostsCountResponse} from '../types/api';
@@ -13,6 +14,8 @@ interface UseNewItemsPollerReturn {
   newItemsCount: number;
   latestCursor: string | null;
   isPolling: boolean;
+  showBanner: boolean;
+  dismissBanner: () => void;
 }
 
 const DEFAULT_POLLING_INTERVAL = 30000; // 30 seconds
@@ -27,6 +30,9 @@ export function useNewItemsPoller(
     enabled = true,
   } = options;
 
+  // Track the count of new items when the banner was dismissed
+  const [dismissedCount, setDismissedCount] = useState<number>(0);
+
   const {data, isFetching} = useQuery<NewPostsCountResponse>({
     queryKey: ['posts-new-count', sinceCursor, searchQuery],
     queryFn: () =>
@@ -40,9 +46,23 @@ export function useNewItemsPoller(
     refetchOnWindowFocus: true,
   });
 
+  const newItemsCount = data?.count ?? 0;
+
+  // Show banner only when new items count exceeds the dismissed count
+  const showBanner = useMemo(() => {
+    return newItemsCount > dismissedCount;
+  }, [newItemsCount, dismissedCount]);
+
+  // Dismiss the banner by recording the current new items count
+  const dismissBanner = useCallback(() => {
+    setDismissedCount(newItemsCount);
+  }, [newItemsCount]);
+
   return {
-    newItemsCount: data?.count ?? 0,
+    newItemsCount,
     latestCursor: data?.latestCursor ?? null,
     isPolling: isFetching,
+    showBanner,
+    dismissBanner,
   };
 }
