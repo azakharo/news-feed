@@ -1,8 +1,8 @@
-# NewsFeed Virtualized
+# High-performance NewsFeed
 
 <div align="center">
 
-**Высокопроизводительная лента новостей с глубокой виртуализацией**
+**High-performance news feed with deep virtualization**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -13,44 +13,44 @@
 
 ---
 
-## Описание проекта
+## Project Description
 
-**NewsFeed Virtualized** — это приложение, представляющее собой ленту новостей с бесконечным скроллом, полнотекстовым поиском и сложным медиа-контентом. Основной фокус проекта — **глубокая проработка алгоритмов виртуализации** для элементов с динамической высотой.
+**High-Performance NewsFeed** is an application featuring a news feed with infinite scroll, full-text search, and rich media content. The main focus of the project is **deep implementation of virtualization algorithms** for elements with dynamic height.
 
-### Ключевая задача
+### Key Objective
 
-Минимизация **Layout Shift** и создание эффективной виртуализации для списков с элементами, размер которых зависит от:
+Minimization of **Layout Shift** and creating efficient virtualization for lists with elements whose size depends on:
 
-- Длины текстового контента
-- Загруженных медиа-файлов (изображения/видео)
-- Интерактивных действий пользователя (раскрытие текста)
-
----
-
-## ✨ Функциональность
-
-### Виртуализированный список
-
-| Функция | Описание |
-|---------|----------|
-| **Динамический расчет высоты** | Рендеринг элементов, размер которых зависит от контента |
-| **Кэширование геометрии** | Сохранение рассчитанных высот для каждого `id` поста |
-| **Scroll Anchoring** | Удержание позиции скролла при изменении контента внутри элементов |
-
-### Поиск и фильтрация
-
-- **Полнотекстовый поиск** — глобальный поиск по ленте через бэкенд
-- **Reset & Re-calculate** — полный сброс виртуализированного списка при обновлении запроса
-- **Highlighting** — подсветка найденных слов в карточках
-
-### Контентные блоки
-
-- **Медиа-контент** — изображения с разными соотношениями сторон и видео-плееры
-- **Интерактив** — кнопка «Показать больше» (expand) для длинных текстов
+- Length of text content
+- Loaded media files (images/videos)
+- Interactive user actions (text expansion)
 
 ---
 
-## Архитектура системы
+## ✨ Features
+
+### Virtualized List
+
+| Feature | Description |
+|---------|-------------|
+| **Dynamic height calculation** | Rendering elements whose size depends on content |
+| **Geometry caching** | Storing calculated heights for each post `id` |
+| **Scroll Anchoring** | Maintaining scroll position when content inside elements changes |
+
+### Search and Filtering
+
+- **Full-text search** — global feed search via backend
+- **Reset & Re-calculate** — complete reset of the virtualized list when query is updated
+- **Highlighting** — highlighting found words in cards
+
+### Content Blocks
+
+- **Media content** — images with different aspect ratios and video players
+- **Interaction** — "Show more" button (expand) for long texts
+
+---
+
+## System Architecture
 
 ```mermaid
 flowchart TB
@@ -80,30 +80,30 @@ flowchart TB
 
 ---
 
-## 🛠️ Технологический стек
+## 🛠️ Technology Stack
 
 ### Backend
 
-| Технология | Назначение |
-|------------|------------|
+| Technology | Purpose |
+|------------|---------|
 | [NestJS](https://nestjs.com) | Node.js framework |
 | [TypeORM](https://typeorm.io) | Data Mapper pattern |
-| [PostgreSQL](https://www.postgresql.org) | Хранение 10,000+ постов |
-| TypeScript | Типизация |
+| [PostgreSQL](https://www.postgresql.org) | Storing 10,000+ posts |
+| TypeScript | Typing |
 
 ### Frontend
 
-| Технология | Назначение |
-|------------|------------|
-| [React.js](https://react.dev) | UI библиотека |
-| [TypeScript](https://www.typescriptlang.org) | Типизация |
-| [Vite](https://vitejs.dev) | Сборщик |
+| Technology | Purpose |
+|------------|---------|
+| [React.js](https://react.dev) | UI library |
+| [TypeScript](https://www.typescriptlang.org) | Typing |
+| [Vite](https://vitejs.dev) | Build tool |
 | [TanStack Query](https://tanstack.com) | Server State Management |
 | [TanStack Virtual](https://tanstack.com) | Virtualization Engine |
 
 ---
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
 NewsFeed/
@@ -116,7 +116,7 @@ NewsFeed/
 
 ## API
 
-### Основной Endpoint
+### Main Endpoint
 
 ```
 GET /posts?limit=20&cursor=ID&search=text
@@ -136,30 +136,30 @@ interface PostsResponse {
 
 ```typescript
 interface Post {
-  id: string;              // UUID - ключ для React list keys
+  id: string;              // UUID - key for React list keys
   title: string;
-  content: string;         // Динамический текст разной длины
+  content: string;         // Dynamic text of varying length
   attachments: Attachment[];
   createdAt: Date;
-  cursorId: number;        // BigInt для Seek Pagination
+  cursorId: number;        // BigInt for Seek Pagination
 }
 
 interface Attachment {
   type: 'image' | 'video';
   url: string;
-  aspectRatio: number;     // Критически важно для предотвращения Layout Shift
+  aspectRatio: number;     // Critically important for preventing Layout Shift
 }
 ```
 
 ---
 
-## ⚙️ Технические особенности
+## ⚙️ Technical Features
 
-### Пагинация
+### Pagination
 
-Используется **Seek Method (Cursor-based)** пагинация:
-- Стабильность выборки при добавлении новых записей
-- Оптимизированная работа с большими объемами данных
+**Seek Method (Cursor-based)** pagination is used:
+- Stable selection when adding new records
+- Optimized performance with large data volumes
 
 ```sql
 WHERE cursorId < :cursor
@@ -168,7 +168,7 @@ ORDER BY cursorId DESC
 LIMIT :limit
 ```
 
-### Виртуализация
+### Virtualization
 
 ```typescript
 const rowVirtualizer = useVirtualizer({
@@ -179,10 +179,10 @@ const rowVirtualizer = useVirtualizer({
 });
 ```
 
-### Борьба с Layout Shift
+### Fighting Layout Shift
 
 ```typescript
-// Резервирование места под медиа до загрузки
+// Reserving space for media before loading
 <div style={{ aspectRatio: `${media.aspectRatio}`, width: '100%' }}>
   <img src={media.url} loading="lazy" />
 </div>
@@ -190,54 +190,54 @@ const rowVirtualizer = useVirtualizer({
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-### Предварительные требования
+### Prerequisites
 
 - Node.js 18+
 - PostgreSQL 15+
-- npm или yarn
+- npm or yarn
 
-### Установка
+### Installation
 
 ```bash
-# Клонирование репозитория
+# Cloning the repository
 git clone <repository-url>
 cd NewsFeed
 
-# Установка зависимостей backend
+# Installing backend dependencies
 cd backend
 npm install
 
-# Установка зависимостей frontend
+# Installing frontend dependencies
 cd ../frontend
 npm install
 ```
 
-### Запуск
+### Running
 
 ```bash
-# Запуск PostgreSQL через Docker
+# Running PostgreSQL via Docker
 cd backend
 docker-compose up -d
 
-# Запуск backend
+# Running backend
 npm run start:dev
 
-# Запуск frontend (в новом терминале)
+# Running frontend (in a new terminal)
 cd ../frontend
 npm run dev
 ```
 
 ---
 
-## 📚 Документация
+## 📚 Documentation
 
-- [PRD (Product Requirements Document)](doc/prd.md) — требования к продукту
-- [ADR (Architecture Design Record)](doc/adr.md) — архитектурные решения
+- [PRD (Product Requirements Document)](doc/prd.md) — product requirements
+- [ADR (Architecture Design Record)](doc/adr.md) — architectural decisions
 
 ---
 
-## 📝 Лицензия
+## 📝 License
 
 MIT License
