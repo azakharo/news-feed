@@ -1,14 +1,14 @@
 import {apiClient} from './client';
 import type {
-  PostsResponse,
+  PostResponse,
   GetPostsParams,
   NewPostsCountResponse,
   GetNewCountParams,
-} from '../types/api';
+} from '../types';
 
 export const postsApi = {
-  getPosts: async (params: GetPostsParams): Promise<PostsResponse> => {
-    const response = await apiClient.get<PostsResponse>('/posts', {
+  getPosts: async (params: GetPostsParams): Promise<PostResponse> => {
+    const response = await apiClient.get<PostResponse>('/posts', {
       params: {
         limit: params.limit ?? 20,
         cursor: params.cursor,
