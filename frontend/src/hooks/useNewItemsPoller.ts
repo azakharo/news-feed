@@ -16,6 +16,7 @@ interface UseNewItemsPollerReturn {
   isPolling: boolean;
   showBanner: boolean;
   dismissBanner: () => void;
+  resetBanner: () => void;
 }
 
 const DEFAULT_POLLING_INTERVAL = 30000; // 30 seconds
@@ -58,11 +59,17 @@ export function useNewItemsPoller(
     setDismissedCount(newItemsCount);
   }, [newItemsCount]);
 
+  // Reset the banner state when user refreshes the feed
+  const resetBanner = useCallback(() => {
+    setDismissedCount(0);
+  }, []);
+
   return {
     newItemsCount,
     latestCursor: data?.latestCursor ?? null,
     isPolling: isFetching,
     showBanner,
     dismissBanner,
+    resetBanner,
   };
 }

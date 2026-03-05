@@ -88,17 +88,19 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   const firstPostCursor = posts.length > 0 ? String(posts[0].cursorId) : null;
 
   // Poll for new items
-  const {newItemsCount, showBanner, dismissBanner} = useNewItemsPoller({
-    sinceCursor: firstPostCursor,
-    searchQuery,
-    pollingInterval: 30000,
-  });
+  const {newItemsCount, showBanner, dismissBanner, resetBanner} =
+    useNewItemsPoller({
+      sinceCursor: firstPostCursor,
+      searchQuery,
+      pollingInterval: 30000,
+    });
 
   // Handle refresh when banner is clicked
   const handleRefreshNewItems = useCallback(() => {
+    resetBanner(); // Reset dismissed count so banner can show again after refresh
     void resetAndRefetch();
     scrollToTop();
-  }, [resetAndRefetch, scrollToTop]);
+  }, [resetBanner, resetAndRefetch, scrollToTop]);
 
   // Scroll to top on search change
   useEffect(() => {
