@@ -31,6 +31,15 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   // Expansion state management
   const {isExpanded, toggle} = usePostExpansion();
 
+  // Disable browser's automatic scroll restoration to prevent scroll position persisting on F5 refresh
+  // This makes the feed always start from the top on page refresh
+  useEffect(() => {
+    if (history.scrollRestoration !== 'manual') {
+      history.scrollRestoration = 'manual';
+    }
+    window.scrollTo({top: 0, behavior: 'auto'});
+  }, []);
+
   // Measure scroll margin after mount
   useEffect(() => {
     if (listRef.current) {
