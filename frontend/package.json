@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix",
-    "ts": "tsc --build --noEmit"
+    "ts": "tsc --build --noEmit",
+    "generate:types": "openapi-typescript http://localhost:3000/api/docs-json -o src/types/generated/api.d.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "5.90.21",
@@ -34,6 +35,7 @@
     "eslint-plugin-react-refresh": "0.4.24",
     "eslint-plugin-react-x": "2.3.9",
     "globals": "16.5.0",
+    "openapi-typescript": "7.13.0",
     "prettier": "3.7.3",
     "prettier-plugin-tailwindcss": "0.7.1",
     "tailwindcss": "4.1.17",
