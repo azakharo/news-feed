@@ -1,4 +1,4 @@
-import type {Post} from '../types/post';
+import type {Post} from '../types';
 
 // Constants for size estimation
 const BASE_HEIGHT = 120; // Card padding, title, date

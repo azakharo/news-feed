@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 import {Card} from 'flowbite-react';
-import type {Post} from '../../types/post';
+import type {Post} from '../../types';
 import {HighlightedText} from '../HighlightedText';
 import {ExpandButton} from '../ExpandButton';
 

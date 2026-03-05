@@ -1,7 +1,7 @@
 import {useState, useCallback, useMemo} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {postsApi} from '../api/posts';
-import type {NewPostsCountResponse} from '../types/api';
+import type {NewPostsCountResponse} from '../types';
 
 interface UseNewItemsPollerOptions {
   sinceCursor: string | null;

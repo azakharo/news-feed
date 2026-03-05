@@ -10,7 +10,7 @@ import {LoadingIndicator} from '../LoadingIndicator';
 import {PostSkeleton} from '../Skeleton/PostSkeleton';
 import {NewItemsBanner} from '../NewItemsBanner';
 import {createEstimateSizeFunction} from '../../utils/estimatePostSize';
-import type {Post} from '../../types/post';
+import type {Post} from '../../types';
 
 const SKELETON_KEYS = [
   'skeleton-1',
