@@ -11,8 +11,8 @@
 ### Test Types
 
 **E2E Tests:**
-- `GET /posts` - pagination, search - 7 test cases
-- `GET /posts/new-count` - 3 test cases
+- `GET /posts` - pagination, search - 8 test cases
+- `GET /posts/new-count` - 4 test cases
 
 > Note: E2E tests validate full API contracts with real database interactions
 
@@ -75,23 +75,25 @@ Add scripts to `package.json`:
 
 #### Test Cases for `GET /posts`
 
-| # | Test Case                 | Validation                                 |
-|:--|:--------------------------|:-------------------------------------------|
-| 1 | First page without cursor | Returns 20 items, hasMore=true             |
-| 2 | Pagination with cursor    | Returns next 20 items, no duplicates       |
-| 3 | Search by term            | Returns filtered results with highlights   |
-| 4 | Search with pagination    | Cursor works correctly with search         |
-| 5 | Empty search results      | Returns empty array, hasMore=false         |
-| 6 | Custom limit              | `?limit=5` returns exactly 5 items         |
-| 7 | Response structure        | Validates `items`, `nextCursor`, `hasMore` |
+| # | Test Case                      | Validation                                              |
+|:--|:-------------------------------|:--------------------------------------------------------|
+| 1 | First page without cursor      | Returns 20 items, hasMore=true                          |
+| 2 | Pagination with cursor         | Returns next 20 items, no duplicates                    |
+| 3 | Cursor stability after new post| Results stay same when new post added during pagination |
+| 4 | Search by term                 | Returns filtered results with highlights                |
+| 5 | Search with pagination         | Cursor works correctly with search                      |
+| 6 | Empty search results           | Returns empty array, hasMore=false                      |
+| 7 | Custom limit                   | `?limit=5` returns exactly 5 items                      |
+| 8 | Response structure             | Validates `items`, `nextCursor`, `hasMore`              |
 
 #### Test Cases for `GET /posts/new-count`
 
-| # | Test Case           | Validation                         |
-|:--|:--------------------|:-----------------------------------|
-| 1 | Count new posts     | Returns correct count since cursor |
-| 2 | Count with search   | Filters by search term             |
-| 3 | Invalid sinceCursor | Returns count: 0                   |
+| # | Test Case                         | Validation                                              |
+|:--|:----------------------------------|:--------------------------------------------------------|
+| 1 | Count with latestCursor           | After adding post, calling with `latestCursor` returns count=1 |
+| 2 | Count increment with same cursor  | After adding post, calling with same `sinceCursor` returns count+1 |
+| 3 | Count with search                 | Filters by search term                                  |
+| 4 | Invalid sinceCursor               | Returns count: 0                                        |
 
 ### 3.2 Database Seeding for Tests
 
