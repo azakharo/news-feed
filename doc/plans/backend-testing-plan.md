@@ -4,21 +4,17 @@
 
 ### Strategy
 
-- **Approach:** Balanced — Unit tests for Service layer + E2E tests for API endpoints
-- **Target Coverage:** ~60% (critical paths)
+- **Approach:** E2E tests only — testing API endpoints with real database
+- **Target Coverage:** Critical API paths
 - **Focus:** Pagination and search functionality
 
 ### Test Types
-
-**Unit Tests:**
-- `PostsService.findPosts()` - 8 test cases
-- `PostsService.getNewCount()` - 4 test cases
 
 **E2E Tests:**
 - `GET /posts` - pagination, search - 7 test cases
 - `GET /posts/new-count` - 3 test cases
 
-> Note: Unit tests are executed first, then E2E tests validate API contracts
+> Note: E2E tests validate full API contracts with real database interactions
 
 ---
 
@@ -64,63 +60,16 @@ Add scripts to `package.json`:
     "test:db:create": "ts-node -r tsconfig-paths/register scripts/create-test-db.ts",
     "test:db:migrate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "test:setup": "npm run test:db:create && npm run test:db:migrate",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:e2e": "jest --config test/jest-e2e.json"
   }
 }
 ```
 
 ---
 
-## 3. Unit Tests
+## 3. E2E Tests
 
-### 3.1 PostsService Tests
-
-**File:** `src/posts/posts.service.spec.ts`
-
-#### Test Cases for `findPosts()`
-
-| # | Test Case | Description |
-|---|-----------|-------------|
-| 1 | `should return paginated posts without cursor` | First page load |
-| 2 | `should return next cursor when hasMore is true` | Pagination works |
-| 3 | `should return paginated posts with cursor` | Subsequent pages |
-| 4 | `should filter posts by search term in title` | ILIKE on title |
-| 5 | `should filter posts by search term in content` | ILIKE on content |
-| 6 | `should combine cursor and search filters` | Search + pagination |
-| 7 | `should return empty items when no results` | Edge case |
-| 8 | `should handle invalid cursor gracefully` | Error handling |
-
-#### Test Cases for `getNewCount()`
-
-| # | Test Case | Description |
-|---|-----------|-------------|
-| 1 | `should return count of new posts` | Basic functionality |
-| 2 | `should return latest cursor` | For polling |
-| 3 | `should filter by search term` | Search integration |
-| 4 | `should return 0 for invalid cursor` | Error handling |
-
-#### Mock Repository Example
-
-```typescript
-const mockRepository = {
-  createQueryBuilder: jest.fn().mockReturnValue({
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    take: jest.fn().mockReturnThis(),
-    getMany: jest.fn(),
-    getRawOne: jest.fn(),
-    select: jest.fn().mockReturnThis(),
-    addSelect: jest.fn().mockReturnThis(),
-  }),
-};
-```
-
----
-
-## 4. E2E Tests
-
-### 4.1 Posts API Tests
+### 3.1 Posts API Tests
 
 **File:** `test/posts.e2e-spec.ts`
 
@@ -144,7 +93,7 @@ const mockRepository = {
 | 2 | Count with search   | Filters by search term             |
 | 3 | Invalid sinceCursor | Returns count: 0                   |
 
-### 4.2 Database Seeding for Tests
+### 3.2 Database Seeding for Tests
 
 Create test fixture factory:
 
@@ -163,7 +112,7 @@ export const createManyPosts = (count: number) =>
   );
 ```
 
-### 4.3 Test Lifecycle
+### 3.3 Test Lifecycle
 
 ```typescript
 describe('Posts API (e2e)', () => {
@@ -191,7 +140,7 @@ describe('Posts API (e2e)', () => {
 
 ---
 
-## 5. CI/CD Configuration
+## 4. CI/CD Configuration
 
 ### GitHub Actions Workflow
 
@@ -253,10 +202,6 @@ jobs:
           DB_DATABASE: news_feed_test
         run: npm run migration:run
 
-      - name: Run unit tests
-        working-directory: ./backend
-        run: npm run test:cov
-
       - name: Run e2e tests
         working-directory: ./backend
         env:
@@ -276,14 +221,13 @@ jobs:
 
 ---
 
-## 6. File Structure
+## 5. File Structure
 
 ```
 backend/
 ├── src/
 │   └── posts/
-│       ├── posts.service.ts
-│       └── posts.service.spec.ts    # Unit tests
+│       └── posts.service.ts
 ├── test/
 │   ├── jest-e2e.json
 │   ├── app.e2e-spec.ts
@@ -297,31 +241,23 @@ backend/
 
 ---
 
-## 7. Implementation Checklist
+## 6. Implementation Checklist
 
 ### Phase 1: Infrastructure Setup
 
 - [ ] Create `.env.test` file
 - [ ] Create test database `news_feed_test`
-- [ ] Update `jest` config for coverage threshold
+- [ ] Update `jest` config for e2e tests
 - [ ] Create test fixtures factory
 
-### Phase 2: Unit Tests
-
-- [ ] Create `posts.service.spec.ts`
-- [ ] Implement mock repository
-- [ ] Write tests for `findPosts()`
-- [ ] Write tests for `getNewCount()`
-- [ ] Verify ~60% coverage
-
-### Phase 3: E2E Tests
+### Phase 2: E2E Tests
 
 - [ ] Create `test/posts.e2e-spec.ts`
 - [ ] Implement database cleanup in `beforeEach`
 - [ ] Write tests for `GET /posts`
 - [ ] Write tests for `GET /posts/new-count`
 
-### Phase 4: CI/CD
+### Phase 3: CI/CD
 
 - [ ] Create `.github/workflows/backend-tests.yml`
 - [ ] Test workflow on GitHub Actions
@@ -329,21 +265,12 @@ backend/
 
 ---
 
-## 8. Commands Summary
+## 7. Commands Summary
 
 ```bash
 # Setup test database (one-time)
 npm run test:setup
 
-# Run unit tests
-npm run test
-
-# Run unit tests with coverage
-npm run test:cov
-
 # Run e2e tests
 npm run test:e2e
-
-# Run all tests
-npm run test:all
 ```
