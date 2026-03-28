@@ -266,6 +266,11 @@ export class FeedPage {
 
   async clearSearch() {
     await this.clearSearchButton.click();
+    // Wait for API response after clearing search
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/posts') && resp.status() === 200,
+      { timeout: 5000 }
+    ).catch(() => {}); // Ignore if no request made
   }
 
   // === Expand/Collapse Actions ===
@@ -317,6 +322,12 @@ export class FeedPage {
 
   async getFirstPostId(): Promise<string | null> {
     return this.posts.first().getAttribute('data-post-id');
+  }
+
+  async getAllPostIds(): Promise<string[]> {
+    return this.posts.evaluateAll((elements) =>
+      elements.map((el) => el.getAttribute('data-post-id') || '')
+    );
   }
 
   // === Assertions ===
@@ -483,10 +494,15 @@ test('should show empty state for no results', async ({ readyFeedPage }) => {
 });
 
 test('should reset feed when search is cleared', async ({ readyFeedPage }) => {
+  const initialPostIds = await readyFeedPage.getAllPostIds();
+
   await readyFeedPage.search('test');
-  await expect(readyFeedPage.posts.first()).toBeVisible();
+  const searchPostIds = await readyFeedPage.getAllPostIds();
+  expect(searchPostIds).not.toEqual(initialPostIds);
+
   await readyFeedPage.clearSearch();
-  await readyFeedPage.expectPostsCount(20);
+  const resetPostIds = await readyFeedPage.getAllPostIds();
+  expect(resetPostIds).toEqual(initialPostIds);
 });
 ```
 
