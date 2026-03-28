@@ -181,93 +181,292 @@ Tests use the same `news_feed_test` database as backend tests.
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-### 4.5 Test Fixtures
+### 4.5 Page Object Model
 
-**File:** `frontend/e2e/fixtures.ts`
+Following Playwright best practices, we use **Page Object Model (POM)** to encapsulate UI interactions and make tests more maintainable.
+
+#### Why POM for NewsFeed?
+
+| Criteria | NewsFeed | POM Needed? |
+|----------|----------|-------------|
+| Interactions per page | 8+ (search, expand, scroll, banner, etc.) | ✅ Yes |
+| Test files using feed | 6 spec files | ✅ Yes |
+| Code duplication | High without POM | ✅ Yes |
+
+#### Page Object: FeedPage
+
+**File:** `frontend/e2e/page-objects/feed.page.ts`
+
+```typescript
+import { type Page, type Locator, expect } from '@playwright/test';
+
+export class FeedPage {
+  readonly page: Page;
+
+  // Locators - readonly, assigned in constructor
+  readonly searchInput: Locator;
+  readonly clearSearchButton: Locator;
+  readonly posts: Locator;
+  readonly skeletons: Locator;
+  readonly loadingIndicator: Locator;
+  readonly newItemsBanner: Locator;
+  readonly dismissBannerButton: Locator;
+  readonly expandButton: Locator;
+  readonly collapseButton: Locator;
+  readonly errorMessage: Locator;
+  readonly emptyState: Locator;
+  readonly highlightedText: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+
+    // Semantic locators first (preferred)
+    this.searchInput = page.getByRole('textbox', { name: /search/i });
+    this.clearSearchButton = page.getByRole('button', { name: /clear/i });
+    this.expandButton = page.getByRole('button', { name: /show more/i });
+    this.collapseButton = page.getByRole('button', { name: /show less/i });
+    this.dismissBannerButton = page.getByRole('button', { name: /dismiss/i });
+    this.errorMessage = page.getByText(/error loading posts/i);
+    this.emptyState = page.getByText(/no posts found/i);
+    this.highlightedText = page.locator('mark');
+
+    // Data-testid locators (when no semantic role exists)
+    this.posts = page.locator('[data-post-id]');
+    this.skeletons = page.getByTestId('post-skeleton');
+    this.loadingIndicator = page.getByTestId('loading-indicator');
+    this.newItemsBanner = page.getByTestId('new-items-banner');
+  }
+
+  // === Navigation ===
+
+  async goto() {
+    await this.page.goto('/');
+  }
+
+  // === Wait Methods ===
+
+  async waitForFeedReady() {
+    await expect(this.posts.first()).toBeVisible();
+  }
+
+  async waitForLoadComplete() {
+    await expect(this.loadingIndicator).toBeHidden();
+  }
+
+  // === Search Actions ===
+
+  async search(query: string) {
+    await this.searchInput.fill(query);
+    // Wait for debounce (500ms) and API response
+    await this.page.waitForResponse(resp =>
+      resp.url().includes('/api/posts') && resp.status() === 200,
+      { timeout: 5000 }
+    ).catch(() => {}); // Ignore if no request made
+  }
+
+  async clearSearch() {
+    await this.clearSearchButton.click();
+  }
+
+  // === Expand/Collapse Actions ===
+
+  async expandFirstPost() {
+    await this.expandButton.first().click();
+  }
+
+  async collapseFirstPost() {
+    await this.collapseButton.first().click();
+  }
+
+  async expandPostByIndex(index: number) {
+    await this.expandButton.nth(index).click();
+  }
+
+  // === Scroll Actions ===
+
+  async scrollToBottom() {
+    await this.page.mouse.wheel(0, 5000);
+  }
+
+  async scrollToPosition(y: number) {
+    await this.page.mouse.wheel(0, y);
+  }
+
+  async getScrollPosition(): Promise<number> {
+    return this.page.evaluate(() => window.scrollY);
+  }
+
+  // === Banner Actions ===
+
+  async isBannerVisible(): Promise<boolean> {
+    return this.newItemsBanner.isVisible().catch(() => false);
+  }
+
+  async dismissBanner() {
+    if (await this.isBannerVisible()) {
+      await this.dismissBannerButton.click();
+      await expect(this.newItemsBanner).toBeHidden();
+    }
+  }
+
+  // === Posts Info ===
+
+  async getPostsCount(): Promise<number> {
+    return this.posts.count();
+  }
+
+  async getFirstPostId(): Promise<string | null> {
+    return this.posts.first().getAttribute('data-post-id');
+  }
+
+  // === Assertions ===
+
+  async expectPostsCount(count: number) {
+    await expect(this.posts).toHaveCount(count);
+  }
+
+  async expectPostsCountGreaterThan(min: number) {
+    const count = await this.posts.count();
+    expect(count).toBeGreaterThan(min);
+  }
+
+  async expectSkeletonsVisible() {
+    await expect(this.skeletons.first()).toBeVisible();
+  }
+
+  async expectLoadingVisible() {
+    await expect(this.loadingIndicator).toBeVisible();
+  }
+
+  async expectLoadingHidden() {
+    await expect(this.loadingIndicator).toBeHidden();
+  }
+
+  async expectErrorVisible() {
+    await expect(this.errorMessage).toBeVisible();
+  }
+
+  async expectEmptyStateVisible() {
+    await expect(this.emptyState).toBeVisible();
+  }
+
+  async expectHighlightsVisible() {
+    await expect(this.highlightedText.first()).toBeVisible();
+  }
+
+  async expectExpandButtonVisible() {
+    await expect(this.expandButton.first()).toBeVisible();
+  }
+
+  async expectCollapseButtonVisible() {
+    await expect(this.collapseButton.first()).toBeVisible();
+  }
+}
+```
+
+### 4.6 Test Fixtures
+
+**File:** `frontend/e2e/fixtures/base.fixture.ts`
 
 ```typescript
 import { test as base, expect } from '@playwright/test';
+import { FeedPage } from '../page-objects/feed.page';
 
 // Constants
 export const SEARCH_DEBOUNCE_MS = 500;
 export const POLLING_INTERVAL_MS = 30000;
 
+// Define fixture types
+type MyFixtures = {
+  feedPage: FeedPage;
+  readyFeedPage: FeedPage;
+};
+
 // Extend base test with custom fixtures
-export const test = base.extend<{
-  // Fixture to ensure feed is loaded and ready
-  feedPage: Page;
-}>({
+export const test = base.extend<MyFixtures>({
+  // Simple POM fixture - creates instance for each test
   feedPage: async ({ page }, use) => {
-    await page.goto('/');
+    const feedPage = new FeedPage(page);
+    await use(feedPage);
+  },
 
-    // Wait for posts to be visible using web-first assertion
-    await expect(page.locator('[data-post-id]').first()).toBeVisible();
-
-    await use(page);
+  // POM fixture with setup - navigates and waits for feed to be ready
+  readyFeedPage: async ({ page }, use) => {
+    const feedPage = new FeedPage(page);
+    await feedPage.goto();
+    await feedPage.waitForFeedReady();
+    await use(feedPage);
   },
 });
 
 export { expect };
 ```
 
+### 4.7 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Test Architecture                            │
+│                                                                  │
+│  Test File (*.spec.ts)                                          │
+│       │                                                          │
+│       ├── Uses Fixtures (readyFeedPage, feedPage)               │
+│       │                                                          │
+│       └── Calls Page Object Methods                             │
+│                │                                                 │
+│                ├── Navigation: goto()                           │
+│                ├── Actions: search(), expandFirstPost()         │
+│                ├── Waits: waitForFeedReady()                    │
+│                └── Assertions: expectPostsCount()               │
+│                                                                  │
+│  Benefits:                                                       │
+│  ✅ Single source of truth for locators                         │
+│  ✅ Intent-revealing method names                               │
+│  ✅ Easy maintenance - change POM, update all tests             │
+│  ✅ Better IDE autocomplete                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 5. Test Cases
+
+All tests use the Page Object Model via fixtures. Import from `./fixtures/base.fixture`.
 
 ### 5.1 Virtual Feed Tests
 
 **File:** `frontend/e2e/virtual-feed.spec.ts`
 
-#### Test 1: Initial Load Shows Skeletons Then Posts
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should show skeletons during initial load', async ({ page }) => {
-  // Navigate and capture initial state
-  await page.goto('/');
+test('should show skeletons during initial load', async ({ page, feedPage }) => {
+  // Navigate and capture initial state before feed is ready
+  await feedPage.goto();
 
   // Skeletons should appear - web-first assertion with short timeout
-  const skeletons = page.getByTestId('post-skeleton');
-  await expect(skeletons.first()).toBeVisible({ timeout: 1000 });
+  await feedPage.expectSkeletonsVisible();
 });
-```
 
-#### Test 2: Posts Render After Loading
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should render posts after initial load', async ({ feedPage }) => {
-  // Posts already visible from fixture
-  const posts = feedPage.locator('[data-post-id]');
-
+test('should render posts after initial load', async ({ readyFeedPage }) => {
+  // readyFeedPage fixture already navigated and waited for feed
   // Verify at least 20 posts (first page)
-  await expect(posts).toHaveCount(20, { timeout: 10_000 });
+  await readyFeedPage.expectPostsCount(20);
 });
-```
 
-#### Test 3: Infinite Scroll Loads More Posts
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should load more posts on scroll', async ({ feedPage }) => {
-  const posts = feedPage.locator('[data-post-id]');
-
+test('should load more posts on scroll', async ({ readyFeedPage }) => {
   // Get initial post count
-  const initialCount = await posts.count();
+  const initialCount = await readyFeedPage.getPostsCount();
 
-  // Scroll to bottom using wheel action
-  await feedPage.mouse.wheel(0, 5000);
+  // Scroll to bottom using POM method
+  await readyFeedPage.scrollToBottom();
 
   // Wait for loading indicator to appear and then disappear
-  const loader = feedPage.getByTestId('loading-indicator');
-  await expect(loader).toBeVisible();
-  await expect(loader).toBeHidden();
+  await readyFeedPage.expectLoadingVisible();
+  await readyFeedPage.expectLoadingHidden();
 
-  // Verify more posts loaded
-  await expect(posts).toHaveCount(initialCount + 20, { timeout: 15_000 });
+  // Verify more posts loaded (20 more per page)
+  await readyFeedPage.expectPostsCount(initialCount + 20);
 });
 ```
 
@@ -275,61 +474,41 @@ test('should load more posts on scroll', async ({ feedPage }) => {
 
 **File:** `frontend/e2e/search.spec.ts`
 
-#### Test 4: Search Results Show Highlighting
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should highlight search terms in results', async ({ feedPage }) => {
-  // Type search term
-  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
-  await searchInput.fill('test');
+test('should highlight search terms in results', async ({ readyFeedPage }) => {
+  // Search using POM method
+  await readyFeedPage.search('test');
 
-  // Wait for results with retry
-  await expect(async () => {
-    const highlights = feedPage.locator('mark');
-    const count = await highlights.count();
-    expect(count).toBeGreaterThan(0);
-  }).toPass({ timeout: 5000 });
+  // Verify highlights appear
+  await readyFeedPage.expectHighlightsVisible();
 
-  const firstHighlight = await highlights.first().textContent();
+  // Verify highlighted text contains search term
+  const firstHighlight = await readyFeedPage.highlightedText.first().textContent();
   expect(firstHighlight?.toLowerCase()).toContain('test');
 });
-```
 
-#### Test 5: Search Returns No Results Message
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should show empty state for no results', async ({ feedPage }) => {
+test('should show empty state for no results', async ({ readyFeedPage }) => {
   // Search for non-existent term
-  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
-  await searchInput.fill('zzzzzzzznonexistent999');
+  await readyFeedPage.search('zzzzzzzznonexistent999');
 
-  // Wait for empty state using web-first assertion
-  await expect(feedPage.getByText(/no posts found/i)).toBeVisible({ timeout: 5000 });
+  // Wait for empty state
+  await readyFeedPage.expectEmptyStateVisible();
 });
-```
 
-#### Test 6: Clear Search Resets Feed
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should reset feed when search is cleared', async ({ feedPage }) => {
+test('should reset feed when search is cleared', async ({ readyFeedPage }) => {
   // Perform search
-  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
-  await searchInput.fill('test');
+  await readyFeedPage.search('test');
 
   // Wait for filtered results
-  await expect(feedPage.locator('[data-post-id]').first()).toBeVisible();
+  await expect(readyFeedPage.posts.first()).toBeVisible();
 
-  // Clear search using clear button
-  await feedPage.getByRole('button', { name: /clear/i }).click();
+  // Clear search using POM method
+  await readyFeedPage.clearSearch();
 
   // Verify feed shows all posts again
-  await expect(feedPage.locator('[data-post-id]')).toHaveCount(20, { timeout: 5000 });
+  await readyFeedPage.expectPostsCount(20);
 });
 ```
 
@@ -337,60 +516,39 @@ test('should reset feed when search is cleared', async ({ feedPage }) => {
 
 **File:** `frontend/e2e/expand-collapse.spec.ts`
 
-#### Test 8: Expand Button Shows Full Content
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should expand long content', async ({ feedPage }) => {
-  // Find and click expand button using semantic locator
-  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
+test('should expand long content', async ({ readyFeedPage }) => {
+  // Click expand using POM method
+  await readyFeedPage.expandFirstPost();
 
-  // Verify button exists before clicking
-  await expect(expandButton).toBeVisible();
-  await expandButton.click();
-
-  // Button should change to "Show less"
-  await expect(feedPage.getByRole('button', { name: /show less/i }).first()).toBeVisible();
+  // Button should change to Show less
+  await readyFeedPage.expectCollapseButtonVisible();
 });
-```
 
-#### Test 9: Collapse Button Hides Content
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should collapse expanded content', async ({ feedPage }) => {
+test('should collapse expanded content', async ({ readyFeedPage }) => {
   // Expand first
-  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
-  await expandButton.click();
+  await readyFeedPage.expandFirstPost();
 
-  // Then collapse using semantic locator
-  const collapseButton = feedPage.getByRole('button', { name: /show less/i }).first();
-  await collapseButton.click();
+  // Then collapse using POM method
+  await readyFeedPage.collapseFirstPost();
 
-  // Button should change back
-  await expect(feedPage.getByRole('button', { name: /show more/i }).first()).toBeVisible();
+  // Button should change back to Show more
+  await readyFeedPage.expectExpandButtonVisible();
 });
-```
 
-#### Test 10: Scroll Position Maintained on Expand
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should maintain scroll position when expanding', async ({ feedPage }) => {
+test('should maintain scroll position when expanding', async ({ readyFeedPage }) => {
   // Scroll to middle of page
-  await feedPage.mouse.wheel(0, 500);
-  const scrollBefore = await feedPage.evaluate(() => window.scrollY);
+  await readyFeedPage.scrollToPosition(500);
+  const scrollBefore = await readyFeedPage.getScrollPosition();
 
   // Expand a post
-  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
-  await expandButton.click();
+  await readyFeedPage.expandFirstPost();
 
   // Use toPass for retry on scroll check
   await expect(async () => {
-    const scrollAfter = await feedPage.evaluate(() => window.scrollY);
+    const scrollAfter = await readyFeedPage.getScrollPosition();
     expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(50);
   }).toPass({ timeout: 1000 });
 });
@@ -400,23 +558,19 @@ test('should maintain scroll position when expanding', async ({ feedPage }) => {
 
 **File:** `frontend/e2e/new-items-banner.spec.ts`
 
-#### Test 11: Banner Dismisses on Click
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should dismiss banner when X button clicked', async ({ feedPage }) => {
-  // Banner may or may not appear - use soft assertion
-  const banner = feedPage.getByTestId('new-items-banner');
-
-  const isVisible = await banner.isVisible().catch(() => false);
+test('should dismiss banner when X button clicked', async ({ readyFeedPage }) => {
+  // Check if banner is visible
+  const isVisible = await readyFeedPage.isBannerVisible();
 
   if (isVisible) {
-    // Click dismiss button using aria-label
-    await banner.getByRole('button', { name: /dismiss/i }).click();
+    // Dismiss using POM method
+    await readyFeedPage.dismissBanner();
 
-    // Banner should disappear
-    await expect(banner).not.toBeVisible();
+    // Banner should be hidden (verified inside dismissBanner)
+    await expect(readyFeedPage.newItemsBanner).not.toBeVisible();
   }
 
   // Pass if banner didn't appear (expected behavior)
@@ -432,35 +586,27 @@ test('should dismiss banner when X button clicked', async ({ feedPage }) => {
 
 **File:** `frontend/e2e/error-handling.spec.ts`
 
-#### Test 12: API Error Shows Error Message
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should show error when API fails', async ({ page }) => {
+test('should show error when API fails', async ({ page, feedPage }) => {
   // Mock failed response BEFORE navigating
   await page.route('**/api/posts*', route => route.abort('failed'));
 
-  await page.goto('/');
+  await feedPage.goto();
 
-  // Should show error message using text locator
-  await expect(page.getByText(/error loading posts/i)).toBeVisible({ timeout: 10_000 });
+  // Should show error message
+  await feedPage.expectErrorVisible();
 });
-```
 
-#### Test 13: Network Error Shows Error Message
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should show error on network failure', async ({ page }) => {
+test('should show error on network failure', async ({ page, feedPage }) => {
   // Simulate offline
   await page.context().setOffline(true);
 
-  await page.goto('/');
+  await feedPage.goto();
 
   // Should show error
-  await expect(page.getByText(/error/i)).toBeVisible({ timeout: 10_000 });
+  await feedPage.expectErrorVisible();
 
   // Restore network for cleanup
   await page.context().setOffline(false);
@@ -471,14 +617,12 @@ test('should show error on network failure', async ({ page }) => {
 
 **File:** `frontend/e2e/media.spec.ts`
 
-#### Test 14: Images Load with Correct Aspect Ratio
-
 ```typescript
-import { test, expect } from './fixtures';
+import { test, expect } from './fixtures/base.fixture';
 
-test('should render images with aspect ratio', async ({ feedPage }) => {
+test('should render images with aspect ratio', async ({ readyFeedPage }) => {
   // Find first post with image
-  const image = feedPage.locator('img[loading="lazy"]').first();
+  const image = readyFeedPage.page.locator('img[loading="lazy"]').first();
 
   if (await image.isVisible()) {
     // Check that parent container has aspect-ratio style
@@ -491,16 +635,10 @@ test('should render images with aspect ratio', async ({ feedPage }) => {
     expect(hasAspectRatio).toBe(true);
   }
 });
-```
 
-#### Test 15: Videos Have Controls
-
-```typescript
-import { test, expect } from './fixtures';
-
-test('should render videos with controls', async ({ feedPage }) => {
+test('should render videos with controls', async ({ readyFeedPage }) => {
   // Find video element with controls attribute
-  const video = feedPage.locator('video[controls]').first();
+  const video = readyFeedPage.page.locator('video[controls]').first();
 
   if (await video.isVisible()) {
     // Check controls attribute exists
@@ -674,7 +812,10 @@ npx playwright codegen http://localhost:5173
 ```
 frontend/
 ├── e2e/
-│   ├── fixtures.ts              # Shared test fixtures and helpers
+│   ├── fixtures/
+│   │   └── base.fixture.ts      # Custom fixtures with POM integration
+│   ├── page-objects/
+│   │   └── feed.page.ts         # FeedPage POM - main page interactions
 │   ├── virtual-feed.spec.ts     # Virtual list tests
 │   ├── search.spec.ts           # Search functionality tests
 │   ├── expand-collapse.spec.ts  # Content expand/collapse tests
@@ -712,9 +853,16 @@ Add to components for reliable test selectors (use only when semantic locators d
 - [ ] Create `playwright.config.ts`
 - [ ] Create `.env.test` file
 - [ ] Add test scripts to `package.json`
-- [ ] Create `e2e/fixtures.ts` with shared fixtures
 
-### Phase 2: Add Data Test IDs
+### Phase 2: Create Page Object Model
+
+- [ ] Create `e2e/page-objects/feed.page.ts` with FeedPage class
+- [ ] Create `e2e/fixtures/base.fixture.ts` with custom fixtures
+- [ ] Define all locators in FeedPage constructor
+- [ ] Add action methods (search, expand, scroll, dismiss)
+- [ ] Add assertion methods (expectPostsCount, expectErrorVisible, etc.)
+
+### Phase 3: Add Data Test IDs
 
 - [ ] Add `data-testid` to VirtualFeed component
 - [ ] Add `data-post-id` to PostCard component
@@ -723,16 +871,16 @@ Add to components for reliable test selectors (use only when semantic locators d
 - [ ] Add `data-testid` to NewItemsBanner component
 - [ ] Add `aria-label` to interactive elements for semantic locators
 
-### Phase 3: Write E2E Tests
+### Phase 4: Write E2E Tests
 
-- [ ] Create `virtual-feed.spec.ts` - 3 tests
-- [ ] Create `search.spec.ts` - 3 tests
-- [ ] Create `expand-collapse.spec.ts` - 3 tests
-- [ ] Create `new-items-banner.spec.ts` - 1-2 tests
-- [ ] Create `error-handling.spec.ts` - 2 tests
-- [ ] Create `media.spec.ts` - 2 tests
+- [ ] Create `virtual-feed.spec.ts` - 3 tests (using POM)
+- [ ] Create `search.spec.ts` - 3 tests (using POM)
+- [ ] Create `expand-collapse.spec.ts` - 3 tests (using POM)
+- [ ] Create `new-items-banner.spec.ts` - 1-2 tests (using POM)
+- [ ] Create `error-handling.spec.ts` - 2 tests (using POM)
+- [ ] Create `media.spec.ts` - 2 tests (using POM)
 
-### Phase 4: CI/CD Integration
+### Phase 5: CI/CD Integration
 
 - [ ] Create `.github/workflows/frontend-tests.yml`
 - [ ] Configure backend startup in CI
