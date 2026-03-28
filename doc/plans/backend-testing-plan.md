@@ -166,14 +166,27 @@ export const createManyPosts = (count: number, startIndex = 0) =>
 describe('Posts API (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
+  let postsRepository: Repository<PostEntity>;
 
   beforeAll(async () => {
     // Initialize app with test database
+    const moduleFixture = await Test.createTestingModule()
+      .overrideModule(/* override for test database */)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    dataSource = app.get(DataSource);
+    postsRepository = dataSource.getRepository(PostEntity);
+    await app.init();
   });
 
   beforeEach(async () => {
-    // Clean and seed database
+    // Clean database
     await dataSource.query('TRUNCATE posts RESTART IDENTITY CASCADE');
+
+    // Seed baseline data for pagination tests
+    const posts = createManyPosts(25);
+    await postsRepository.save(posts);
   });
 
   afterAll(async () => {
@@ -185,6 +198,10 @@ describe('Posts API (e2e)', () => {
   // Tests...
 });
 ```
+
+> **Note:** Each test starts with 25 posts, which is enough to test:
+> - First page (20 items) with `hasMore=true`
+> - Second page with cursor (5 remaining items)
 
 ---
 
@@ -308,7 +325,7 @@ backend/
 ### Phase 2: E2E Tests
 
 - [ ] Create `test/posts.e2e-spec.ts`
-- [ ] Implement database cleanup in `beforeEach`
+- [ ] Implement database cleanup and seeding in `beforeEach` (TRUNCATE + save 25 posts)
 - [ ] Write tests for `GET /posts`
 - [ ] Write tests for `GET /posts/new-count`
 
