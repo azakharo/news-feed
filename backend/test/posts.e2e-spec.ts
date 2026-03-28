@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { Server } from 'http';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PostEntity } from '../src/entities/post.entity';
@@ -11,6 +12,7 @@ import { createPostFixture, createManyPosts } from './fixtures/post.fixture';
 
 describe('Posts API (e2e)', () => {
   let app: INestApplication;
+  let server: Server;
   let dataSource: DataSource;
   let postsRepository: Repository<PostEntity>;
 
@@ -25,6 +27,7 @@ describe('Posts API (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
 
+    server = app.getHttpServer() as unknown as Server;
     dataSource = app.get<DataSource>(getDataSourceToken());
     postsRepository = dataSource.getRepository(PostEntity);
   });
@@ -44,13 +47,23 @@ describe('Posts API (e2e)', () => {
     }
   });
 
+  /**
+   * Helper to get the latest cursor from existing posts.
+   * Used in new-count tests to track new posts since last viewed.
+   */
+  async function getLatestCursor(): Promise<number> {
+    const response = await request(server).get('/posts');
+    const body = response.body as PostResponseDto;
+    return body.items[0].cursorId;
+  }
+
   // ========================================
   // GET /posts Test Cases (8 tests)
   // ========================================
 
   describe('GET /posts', () => {
     it('#1 First page without cursor - Returns 20 items, hasMore=true', async () => {
-      const response = await request(app.getHttpServer()).get('/posts');
+      const response = await request(server).get('/posts');
 
       expect(response.status).toBe(200);
       const body = response.body as PostResponseDto;
@@ -61,9 +74,7 @@ describe('Posts API (e2e)', () => {
 
     it('#2 Pagination with cursor - Returns next 20 items, no duplicates', async () => {
       // Get first page to get cursor
-      const firstPageResponse = await request(app.getHttpServer()).get(
-        '/posts',
-      );
+      const firstPageResponse = await request(server).get('/posts');
 
       expect(firstPageResponse.status).toBe(200);
       const firstPageBody = firstPageResponse.body as PostResponseDto;
@@ -71,7 +82,7 @@ describe('Posts API (e2e)', () => {
       const cursor = firstPageBody.nextCursor;
 
       // Get second page using cursor
-      const secondPageResponse = await request(app.getHttpServer())
+      const secondPageResponse = await request(server)
         .get('/posts')
         .query({ cursor });
 
@@ -90,9 +101,7 @@ describe('Posts API (e2e)', () => {
 
     it('#3 Cursor stability after new post - Results stay same when new post added during pagination', async () => {
       // Get first page
-      const firstPageResponse = await request(app.getHttpServer()).get(
-        '/posts',
-      );
+      const firstPageResponse = await request(server).get('/posts');
 
       expect(firstPageResponse.status).toBe(200);
       const firstPageBody = firstPageResponse.body as PostResponseDto;
@@ -102,7 +111,7 @@ describe('Posts API (e2e)', () => {
       await postsRepository.save(createPostFixture({ title: 'New Post' }));
 
       // Get second page with the cursor from first request
-      const secondPageResponse = await request(app.getHttpServer())
+      const secondPageResponse = await request(server)
         .get('/posts')
         .query({ cursor });
 
@@ -120,7 +129,7 @@ describe('Posts API (e2e)', () => {
         createPostFixture({ title: 'Another Post' }),
       ]);
 
-      const response = await request(app.getHttpServer())
+      const response = await request(server)
         .get('/posts')
         .query({ search: 'unique search term' });
 
@@ -146,7 +155,7 @@ describe('Posts API (e2e)', () => {
       await postsRepository.save(searchPosts);
 
       // First page with search
-      const firstPageResponse = await request(app.getHttpServer())
+      const firstPageResponse = await request(server)
         .get('/posts')
         .query({ search: 'searchable' });
 
@@ -158,7 +167,7 @@ describe('Posts API (e2e)', () => {
       const cursor = firstPageBody.nextCursor;
 
       // Second page with search
-      const secondPageResponse = await request(app.getHttpServer())
+      const secondPageResponse = await request(server)
         .get('/posts')
         .query({ search: 'searchable', cursor });
 
@@ -176,7 +185,7 @@ describe('Posts API (e2e)', () => {
 
     it('#6 Empty search results - Returns empty array, hasMore=false', async () => {
       // Search for something that doesn't exist
-      const response = await request(app.getHttpServer())
+      const response = await request(server)
         .get('/posts')
         .query({ search: 'nonexistentterm12345' });
 
@@ -188,9 +197,7 @@ describe('Posts API (e2e)', () => {
     });
 
     it('#7 Custom limit - ?limit=5 returns exactly 5 items', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/posts')
-        .query({ limit: 5 });
+      const response = await request(server).get('/posts').query({ limit: 5 });
 
       expect(response.status).toBe(200);
       const body = response.body as PostResponseDto;
@@ -199,7 +206,7 @@ describe('Posts API (e2e)', () => {
     });
 
     it('#8 Response structure - Validates items, nextCursor, hasMore', async () => {
-      const response = await request(app.getHttpServer()).get('/posts');
+      const response = await request(server).get('/posts');
 
       expect(response.status).toBe(200);
       const body = response.body as PostResponseDto;
@@ -237,19 +244,13 @@ describe('Posts API (e2e)', () => {
 
   describe('GET /posts/new-count', () => {
     it('#1 Count with latestCursor - After adding post, calling with latestCursor returns count=1', async () => {
-      // Get current latest cursor from existing posts
-      const initialResponse = await request(app.getHttpServer()).get('/posts');
-
-      expect(initialResponse.status).toBe(200);
-      const initialBody = initialResponse.body as PostResponseDto;
-      const initialPosts = initialBody.items;
-      const currentLatestCursor = initialPosts[0].cursorId;
+      const currentLatestCursor = await getLatestCursor();
 
       // Add a new post
       await postsRepository.save(createPostFixture({ title: 'New Post 1' }));
 
       // Get new count with the previous latest cursor
-      const countResponse = await request(app.getHttpServer())
+      const countResponse = await request(server)
         .get('/posts/new-count')
         .query({ sinceCursor: currentLatestCursor.toString() });
 
@@ -260,19 +261,13 @@ describe('Posts API (e2e)', () => {
     });
 
     it('#2 Count increment with same cursor - After adding post, calling with same sinceCursor returns count+1', async () => {
-      // Get current latest cursor
-      const initialResponse = await request(app.getHttpServer()).get('/posts');
-
-      expect(initialResponse.status).toBe(200);
-      const initialBody = initialResponse.body as PostResponseDto;
-      const initialPosts = initialBody.items;
-      const currentLatestCursor = initialPosts[0].cursorId;
+      const currentLatestCursor = await getLatestCursor();
 
       // Add first new post
       await postsRepository.save(createPostFixture({ title: 'New Post A' }));
 
       // Get count after first new post
-      const firstCountResponse = await request(app.getHttpServer())
+      const firstCountResponse = await request(server)
         .get('/posts/new-count')
         .query({ sinceCursor: currentLatestCursor.toString() });
 
@@ -284,7 +279,7 @@ describe('Posts API (e2e)', () => {
       await postsRepository.save(createPostFixture({ title: 'New Post B' }));
 
       // Get count with same cursor - should increment
-      const secondCountResponse = await request(app.getHttpServer())
+      const secondCountResponse = await request(server)
         .get('/posts/new-count')
         .query({ sinceCursor: currentLatestCursor.toString() });
 
@@ -294,13 +289,7 @@ describe('Posts API (e2e)', () => {
     });
 
     it('#3 Count with search - Filters by search term', async () => {
-      // Get current latest cursor
-      const initialResponse = await request(app.getHttpServer()).get('/posts');
-
-      expect(initialResponse.status).toBe(200);
-      const initialBody = initialResponse.body as PostResponseDto;
-      const initialPosts = initialBody.items;
-      const currentLatestCursor = initialPosts[0].cursorId;
+      const currentLatestCursor = await getLatestCursor();
 
       // Add new posts - some matching search, some not
       await postsRepository.save([
@@ -310,7 +299,7 @@ describe('Posts API (e2e)', () => {
       ]);
 
       // Get count with search filter
-      const searchCountResponse = await request(app.getHttpServer())
+      const searchCountResponse = await request(server)
         .get('/posts/new-count')
         .query({
           sinceCursor: currentLatestCursor.toString(),
@@ -322,7 +311,7 @@ describe('Posts API (e2e)', () => {
       expect(searchCountBody.count).toBe(2);
 
       // Get count without search filter
-      const totalCountResponse = await request(app.getHttpServer())
+      const totalCountResponse = await request(server)
         .get('/posts/new-count')
         .query({ sinceCursor: currentLatestCursor.toString() });
 
@@ -333,7 +322,7 @@ describe('Posts API (e2e)', () => {
 
     it('#4 Invalid sinceCursor - Returns count: 0', async () => {
       // Try with invalid cursor (non-numeric)
-      const response = await request(app.getHttpServer())
+      const response = await request(server)
         .get('/posts/new-count')
         .query({ sinceCursor: 'invalid' });
 
