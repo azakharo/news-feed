@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import {defineConfig, devices} from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1, // Single worker for shared database
   reporter: [
     ['list'],
-    ['json', { outputFile: 'test-results/test-results.json' }]
+    ['json', {outputFile: 'test-results/test-results.json'}],
   ],
 
   // Timeouts
@@ -30,7 +30,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {...devices['Desktop Chrome']},
     },
   ],
 
