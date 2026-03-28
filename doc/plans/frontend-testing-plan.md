@@ -639,21 +639,7 @@ test('should maintain scroll position when expanding', async ({ readyFeedPage })
 
 ### 5.4 New Items Banner Tests
 
-**File:** `frontend/e2e/new-items-banner.spec.ts`
-
-```typescript
-import { test, expect } from './fixtures/base.fixture';
-
-test('should dismiss banner when X button clicked', async ({ readyFeedPage }) => {
-  const isVisible = await readyFeedPage.isBannerVisible();
-
-  if (isVisible) {
-    await readyFeedPage.dismissBanner();
-    await expect(readyFeedPage.newItemsBanner).not.toBeVisible();
-  }
-  // Pass if banner didn't appear - polling may not have triggered
-});
-```
+Don't implement these tests because of the following reasons.
 
 > **Note:** Testing new items banner appearance requires backend manipulation. Options:
 > 1. Add test-only API endpoint: `POST /api/test/posts` to create test posts
