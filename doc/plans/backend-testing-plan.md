@@ -97,20 +97,66 @@ Add scripts to `package.json`:
 
 ### 3.2 Database Seeding for Tests
 
-Create test fixture factory:
+#### Shared Attachment Generator
+
+Extract `generateRandomAttachments()` from `run-seed.ts` into a shared module:
+
+```typescript
+// src/common/utils/attachment-generator.ts
+const SAMPLE_VIDEOS = [
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  // ... other videos
+] as const;
+
+export function generateRandomAttachments(): PostEntity['attachments'] | undefined {
+  const hasAttachments = Math.random() > 0.6;
+  if (!hasAttachments) {
+    return undefined;
+  }
+
+  const count = Math.floor(Math.random() * 4) + 1;
+  const attachments: PostEntity['attachments'] = [];
+  const types: ('image' | 'video')[] = ['image', 'image', 'image', 'video'];
+
+  for (let i = 0; i < count; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const aspectRatio = [16 / 9, 4 / 3, 1, 9 / 16, 3 / 4][Math.floor(Math.random() * 5)];
+
+    const url = type === 'video'
+      ? SAMPLE_VIDEOS[Math.floor(Math.random() * SAMPLE_VIDEOS.length)]
+      : `https://picsum.photos/seed/${Math.random().toString(36).substring(7)}/${Math.floor(800 * aspectRatio)}/800`;
+
+    attachments.push({ type, url, aspectRatio });
+  }
+
+  return attachments;
+}
+```
+
+> **Note:** This module will be imported by both `run-seed.ts` and test fixtures, eliminating code duplication.
+
+#### Test Fixture Factory
 
 ```typescript
 // test/fixtures/post.fixture.ts
-export const createPostFixture = (overrides = {}) => ({
+import { generateRandomAttachments } from '../../src/common/utils/attachment-generator';
+
+export const createPostFixture = (overrides: Partial<PostEntity> = {}) => ({
   title: 'Test Post',
   content: 'Test content for post',
   attachments: null,
   ...overrides,
 });
 
-export const createManyPosts = (count: number) =>
+export const createPostFixtureWithAttachments = (overrides: Partial<PostEntity> = {}) =>
+  createPostFixture({
+    attachments: generateRandomAttachments(),
+    ...overrides,
+  });
+
+export const createManyPosts = (count: number, startIndex = 0) =>
   Array.from({ length: count }, (_, i) =>
-    createPostFixture({ title: `Post ${i}` })
+    createPostFixture({ title: `Post ${startIndex + i}` })
   );
 ```
 
@@ -228,6 +274,11 @@ jobs:
 ```
 backend/
 ├── src/
+│   ├── common/
+│   │   └── utils/
+│   │       └── attachment-generator.ts   # Shared attachment generator
+│   ├── database/
+│   │   └── run-seed.ts                   # Uses shared generator
 │   └── posts/
 │       └── posts.service.ts
 ├── test/
@@ -235,7 +286,7 @@ backend/
 │   ├── app.e2e-spec.ts
 │   ├── posts.e2e-spec.ts            # E2E tests
 │   └── fixtures/
-│       └── post.fixture.ts          # Test data factories
+│       └── post.fixture.ts          # Uses shared generator
 ├── .env.test                         # Test environment
 └── scripts/
     └── create-test-db.ts            # Test DB setup script
@@ -250,7 +301,9 @@ backend/
 - [ ] Create `.env.test` file
 - [ ] Create test database `news_feed_test`
 - [ ] Update `jest` config for e2e tests
-- [ ] Create test fixtures factory
+- [ ] Extract `attachment-generator.ts` from `run-seed.ts`
+- [ ] Refactor `run-seed.ts` to use shared generator
+- [ ] Create test fixtures factory (using shared generator)
 
 ### Phase 2: E2E Tests
 
