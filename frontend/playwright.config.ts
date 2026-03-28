@@ -34,11 +34,10 @@ export default defineConfig({
     },
   ],
 
-  // @ts-expect-error "npm run build", then "npm run preview" will be called by hand
   webServer: {
-    command: undefined,
+    command: 'npm run preview',
     url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // !process.env.CI,
     timeout: 10_000,
   },
 });
