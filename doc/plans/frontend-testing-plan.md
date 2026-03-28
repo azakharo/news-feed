@@ -827,7 +827,7 @@ jobs:
 
 ```bash
 # 1. Start PostgreSQL (if using Docker)
-docker run -d --name postgres-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=news_feed_test -p 5432:5432 postgres:16
+docker run -d --name postgres-test -e POSTGRES_PASSWORD=password -e POSTGRES_DB=news_feed_test -p 5432:5432 postgres:16
 
 # 2. Setup test database
 cd backend
@@ -884,13 +884,13 @@ frontend/
 
 Add to components for reliable test selectors (use only when semantic locators don't work):
 
-| Component | Attribute | Location | Use Case |
-|-----------|-----------|----------|----------|
-| VirtualFeed | `data-testid="virtual-feed"` | Container div | When no semantic role exists |
-| PostCard | `data-post-id={post.id}` | Card component | Identifying specific posts |
-| PostSkeleton | `data-testid="post-skeleton"` | Skeleton component | No semantic role |
-| LoadingIndicator | `data-testid="loading-indicator"` | Loading spinner | No semantic role |
-| NewItemsBanner | `data-testid="new-items-banner"` | Banner component | No semantic role |
+| Component        | Attribute                         | Location           | Use Case                     |
+|:-----------------|:----------------------------------|:-------------------|:-----------------------------|
+| VirtualFeed      | `data-testid="virtual-feed"`      | Container div      | When no semantic role exists |
+| PostCard         | `data-post-id={post.id}`          | Card component     | Identifying specific posts   |
+| PostSkeleton     | `data-testid="post-skeleton"`     | Skeleton component | No semantic role             |
+| LoadingIndicator | `data-testid="loading-indicator"` | Loading spinner    | No semantic role             |
+| NewItemsBanner   | `data-testid="new-items-banner"`  | Banner component   | No semantic role             |
 
 > **Note:** Prefer `getByRole()` and `getByText()` over `getByTestId()` when possible.
 
