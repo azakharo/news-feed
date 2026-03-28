@@ -43,9 +43,25 @@
 
 ---
 
-## 2. Test Categories
+## 2. Playwright Best Practices
 
-### 2.1 Critical Flows (Must Have)
+This plan follows Playwright Golden Rules:
+
+| Rule | Implementation |
+|------|----------------|
+| ✅ `getByRole()` over CSS/XPath | Use semantic locators first |
+| ✅ Never `waitForTimeout()` | Use web-first assertions or `waitForResponse` |
+| ✅ Web-first assertions | `expect(locator).toBeVisible()` not `expect(value).toBe(true)` |
+| ✅ `baseURL` in config | Zero hardcoded URLs in tests |
+| ✅ `trace: 'on-first-retry'` | Rich debugging without slowdown |
+| ✅ Fixtures over globals | Share state via `test.extend()` |
+| ✅ Mock external services only | Real backend with test database |
+
+---
+
+## 3. Test Categories
+
+### 3.1 Critical Flows (Must Have)
 
 | Category | Priority | Test Cases |
 |----------|----------|------------|
@@ -55,7 +71,7 @@
 | Expand/Collapse | P0 | Toggle state, scroll anchor, height change |
 | New Items Banner | P1 | Appear on new items, click to refresh, dismiss |
 
-### 2.2 Edge Cases (Should Have)
+### 3.2 Edge Cases (Should Have)
 
 | Category | Priority | Test Cases |
 |----------|----------|------------|
@@ -66,9 +82,9 @@
 
 ---
 
-## 3. Test Infrastructure
+## 4. Test Infrastructure
 
-### 3.1 Dependencies
+### 4.1 Dependencies
 
 Add to `frontend/package.json`:
 
@@ -87,7 +103,7 @@ Add to `frontend/package.json`:
 }
 ```
 
-### 3.2 Playwright Configuration
+### 4.2 Playwright Configuration
 
 **File:** `frontend/playwright.config.ts`
 
@@ -102,10 +118,21 @@ export default defineConfig({
   workers: 1, // Single worker for shared database
   reporter: 'html',
 
+  // Timeouts
+  timeout: 30_000,
+  expect: {
+    timeout: 5_000, // Per-assertion retry timeout
+  },
+
   use: {
     baseURL: 'http://localhost:5173',
+    actionTimeout: 10_000,
+    navigationTimeout: 15_000,
+
+    // Artifact collection
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
 
   projects: [
@@ -119,12 +146,12 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 10000,
+    timeout: 15_000,
   },
 });
 ```
 
-### 3.3 Test Database Setup
+### 4.3 Test Database Setup
 
 Tests use the same `news_feed_test` database as backend tests.
 
@@ -144,7 +171,7 @@ Tests use the same `news_feed_test` database as backend tests.
 }
 ```
 
-### 3.4 Environment Configuration
+### 4.4 Environment Configuration
 
 **File:** `frontend/.env.test`
 
@@ -153,52 +180,54 @@ Tests use the same `news_feed_test` database as backend tests.
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-### 3.5 Test Fixtures
+### 4.5 Test Fixtures
 
 **File:** `frontend/e2e/fixtures.ts`
 
 ```typescript
 import { test as base, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+
+// Constants
+export const SEARCH_DEBOUNCE_MS = 500;
+export const POLLING_INTERVAL_MS = 30000;
 
 // Extend base test with custom fixtures
 export const test = base.extend<{
-  // Helper to wait for feed to be ready
-  waitForFeed: () => Promise<void>;
+  // Fixture to ensure feed is loaded and ready
+  feedPage: Page;
 }>({
-  waitForFeed: async ({ page }, use) => {
-    await use(async () => {
-      await page.waitForSelector('[data-testid="virtual-feed"]', { state: 'visible' });
-      await page.waitForSelector('[data-post-id]', { state: 'visible' });
-    });
+  feedPage: async ({ page }, use) => {
+    await page.goto('/');
+
+    // Wait for posts to be visible using web-first assertion
+    await expect(page.locator('[data-post-id]').first()).toBeVisible();
+
+    await use(page);
   },
 });
 
 export { expect };
-
-// Test data constants
-export const TEST_POSTS_COUNT = 25; // Match backend seed
-export const SEARCH_DEBOUNCE_MS = 500;
-export const POLLING_INTERVAL_MS = 30000;
 ```
 
 ---
 
-## 4. Test Cases
+## 5. Test Cases
 
-### 4.1 Virtual Feed Tests
+### 5.1 Virtual Feed Tests
 
 **File:** `frontend/e2e/virtual-feed.spec.ts`
 
 #### Test 1: Initial Load Shows Skeletons Then Posts
 
 ```typescript
-test('should show skeletons during initial load', async ({ page }) => {
-  // Navigate and wait for network idle
-  await page.goto('/', { waitUntil: 'networkidle' });
+import { test, expect } from './fixtures';
 
-  // Skeletons should appear briefly
-  const skeletons = page.locator('[data-testid="post-skeleton"]');
+test('should show skeletons during initial load', async ({ page }) => {
+  // Navigate and capture initial state
+  await page.goto('/');
+
+  // Skeletons should appear - web-first assertion with short timeout
+  const skeletons = page.getByTestId('post-skeleton');
   await expect(skeletons.first()).toBeVisible({ timeout: 1000 });
 });
 ```
@@ -206,241 +235,242 @@ test('should show skeletons during initial load', async ({ page }) => {
 #### Test 2: Posts Render After Loading
 
 ```typescript
-test('should render posts after initial load', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
-  // Wait for posts to appear
-  const posts = page.locator('[data-post-id]');
-  await expect(posts.first()).toBeVisible();
+test('should render posts after initial load', async ({ feedPage }) => {
+  // Posts already visible from fixture
+  const posts = feedPage.locator('[data-post-id]');
 
   // Verify at least 20 posts (first page)
-  const count = await posts.count();
-  expect(count).toBeGreaterThanOrEqual(20);
+  await expect(posts).toHaveCount(20, { timeout: 10_000 });
 });
 ```
 
 #### Test 3: Infinite Scroll Loads More Posts
 
 ```typescript
-test('should load more posts on scroll', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
+
+test('should load more posts on scroll', async ({ feedPage }) => {
+  const posts = feedPage.locator('[data-post-id]');
 
   // Get initial post count
-  const posts = page.locator('[data-post-id]');
   const initialCount = await posts.count();
 
-  // Scroll to bottom
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  // Scroll to bottom using wheel action
+  await feedPage.mouse.wheel(0, 5000);
 
-  // Wait for loading indicator
-  await page.locator('[data-testid="loading-indicator"]').waitFor({ state: 'visible' });
+  // Wait for loading indicator to appear and then disappear
+  const loader = feedPage.getByTestId('loading-indicator');
+  await expect(loader).toBeVisible();
+  await expect(loader).toBeHidden();
 
-  // Wait for more posts
-  await expect(async () => {
-    const newCount = await posts.count();
-    expect(newCount).toBeGreaterThan(initialCount);
-  }).toPass();
+  // Verify more posts loaded
+  await expect(posts).toHaveCount(initialCount + 20, { timeout: 15_000 });
 });
 ```
 
-### 4.2 Search Tests
+### 5.2 Search Tests
 
 **File:** `frontend/e2e/search.spec.ts`
 
-#### Test 4: Search Input Debounces
+#### Test 4: Search Input with Debounce
 
 ```typescript
-test('should debounce search input', async ({ page }) => {
-  await page.goto('/');
+import { test, expect, SEARCH_DEBOUNCE_MS } from './fixtures';
 
-  // Type quickly
-  const searchInput = page.locator('input[type="text"]');
-  await searchInput.type('test query', { delay: 50 });
+test('should debounce search input and update results', async ({ feedPage }) => {
+  // Setup response listener BEFORE typing
+  const responsePromise = feedPage.waitForResponse('**/api/posts*');
 
-  // Should not immediately show results
-  // Wait for debounce (500ms) + network
-  await page.waitForTimeout(600);
+  // Type in search using semantic locator
+  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
+  await searchInput.fill('test query');
 
-  // URL or data should reflect search
-  await expect(page.locator('[data-post-id]')).toBeVisible();
+  // Wait for debounced API call
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+
+  // Verify URL contains search params or results updated
+  await expect(feedPage.locator('[data-post-id]').first()).toBeVisible();
 });
 ```
 
 #### Test 5: Search Results Show Highlighting
 
 ```typescript
-test('should highlight search terms in results', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
-  // Search for known term
-  const searchInput = page.locator('input[type="text"]');
+test('should highlight search terms in results', async ({ feedPage }) => {
+  // Type search term
+  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
   await searchInput.fill('test');
-  await page.waitForTimeout(600);
 
-  // Check for highlighted text
-  const highlights = page.locator('mark');
-  const count = await highlights.count();
-  expect(count).toBeGreaterThan(0);
+  // Wait for results with retry
+  await expect(async () => {
+    const highlights = feedPage.locator('mark');
+    const count = await highlights.count();
+    expect(count).toBeGreaterThan(0);
+  }).toPass({ timeout: 5000 });
 });
 ```
 
 #### Test 6: Search Returns No Results Message
 
 ```typescript
-test('should show empty state for no results', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
-  const searchInput = page.locator('input[type="text"]');
-  await searchInput.fill('zzzzzzzzzzzzznonexistent');
-  await page.waitForTimeout(600);
+test('should show empty state for no results', async ({ feedPage }) => {
+  // Search for non-existent term
+  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
+  await searchInput.fill('zzzzzzzznonexistent999');
 
-  // Check for empty state
-  await expect(page.locator('text=No posts found')).toBeVisible();
+  // Wait for empty state using web-first assertion
+  await expect(feedPage.getByText(/no posts found/i)).toBeVisible({ timeout: 5000 });
 });
 ```
 
 #### Test 7: Clear Search Resets Feed
 
 ```typescript
-test('should reset feed when search is cleared', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
+test('should reset feed when search is cleared', async ({ feedPage }) => {
   // Perform search
-  const searchInput = page.locator('input[type="text"]');
+  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
   await searchInput.fill('test');
-  await page.waitForTimeout(600);
 
-  // Clear search using X button
-  await page.locator('button[aria-label="Clear search"]').click();
-  await page.waitForTimeout(600);
+  // Wait for filtered results
+  await expect(feedPage.locator('[data-post-id]').first()).toBeVisible();
 
-  // Feed should show all posts
-  const posts = page.locator('[data-post-id]');
-  const count = await posts.count();
-  expect(count).toBeGreaterThanOrEqual(20);
+  // Clear search using clear button
+  await feedPage.getByRole('button', { name: /clear/i }).click();
+
+  // Verify feed shows all posts again
+  await expect(feedPage.locator('[data-post-id]')).toHaveCount(20, { timeout: 5000 });
 });
 ```
 
-### 4.3 Expand/Collapse Tests
+### 5.3 Expand/Collapse Tests
 
 **File:** `frontend/e2e/expand-collapse.spec.ts`
 
 #### Test 8: Expand Button Shows Full Content
 
 ```typescript
-test('should expand long content', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
-  // Find a post with expand button
-  const expandButton = page.locator('button:has-text("Show more")').first();
+test('should expand long content', async ({ feedPage }) => {
+  // Find and click expand button using semantic locator
+  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
+
+  // Verify button exists before clicking
+  await expect(expandButton).toBeVisible();
   await expandButton.click();
 
   // Button should change to "Show less"
-  await expect(page.locator('button:has-text("Show less")').first()).toBeVisible();
+  await expect(feedPage.getByRole('button', { name: /show less/i }).first()).toBeVisible();
 });
 ```
 
 #### Test 9: Collapse Button Hides Content
 
 ```typescript
-test('should collapse expanded content', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
+test('should collapse expanded content', async ({ feedPage }) => {
   // Expand first
-  const expandButton = page.locator('button:has-text("Show more")').first();
+  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
   await expandButton.click();
 
-  // Then collapse
-  const collapseButton = page.locator('button:has-text("Show less")').first();
+  // Then collapse using semantic locator
+  const collapseButton = feedPage.getByRole('button', { name: /show less/i }).first();
   await collapseButton.click();
 
   // Button should change back
-  await expect(page.locator('button:has-text("Show more")').first()).toBeVisible();
+  await expect(feedPage.getByRole('button', { name: /show more/i }).first()).toBeVisible();
 });
 ```
 
 #### Test 10: Scroll Position Maintained on Expand
 
 ```typescript
-test('should maintain scroll position when expanding', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
+test('should maintain scroll position when expanding', async ({ feedPage }) => {
   // Scroll to middle of page
-  await page.evaluate(() => window.scrollTo(0, 500));
-  const scrollBefore = await page.evaluate(() => window.scrollY);
+  await feedPage.mouse.wheel(0, 500);
+  const scrollBefore = await feedPage.evaluate(() => window.scrollY);
 
   // Expand a post
-  const expandButton = page.locator('button:has-text("Show more")').first();
+  const expandButton = feedPage.getByRole('button', { name: /show more/i }).first();
   await expandButton.click();
 
-  // Wait for re-render
-  await page.waitForTimeout(100);
-
-  // Scroll should be approximately the same
-  const scrollAfter = await page.evaluate(() => window.scrollY);
-  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(50);
+  // Use toPass for retry on scroll check
+  await expect(async () => {
+    const scrollAfter = await feedPage.evaluate(() => window.scrollY);
+    expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(50);
+  }).toPass({ timeout: 1000 });
 });
 ```
 
-### 4.4 New Items Banner Tests
+### 5.4 New Items Banner Tests
 
 **File:** `frontend/e2e/new-items-banner.spec.ts`
 
-#### Test 11: Banner Appears When New Items Exist
+#### Test 11: Banner Dismisses on Click
 
 ```typescript
-test.skip('should show banner when new posts are available', async ({ page }) => {
-  // This test requires backend manipulation
-  // Skip for now - needs backend API to add test post
-});
-```
+import { test, expect } from './fixtures';
 
-> **Note:** New items banner tests require backend manipulation or a very long wait time (30s polling). Consider:
-> 1. Adding a test-only API endpoint to simulate new items
-> 2. Or mocking the `/posts/new-count` response in Playwright
+test('should dismiss banner when X button clicked', async ({ feedPage }) => {
+  // Banner may or may not appear - use soft assertion
+  const banner = feedPage.getByTestId('new-items-banner');
 
-#### Test 12: Banner Dismisses on Click
-
-```typescript
-test('should dismiss banner on X button click', async ({ page }) => {
-  // Navigate to page
-  await page.goto('/');
-
-  // Check if banner exists (may not always appear)
-  const banner = page.locator('[data-testid="new-items-banner"]');
   const isVisible = await banner.isVisible().catch(() => false);
 
   if (isVisible) {
-    // Click dismiss button
-    await banner.locator('button[aria-label="Dismiss notification"]').click();
+    // Click dismiss button using aria-label
+    await banner.getByRole('button', { name: /dismiss/i }).click();
+
+    // Banner should disappear
     await expect(banner).not.toBeVisible();
   }
 
-  // Pass if banner didn't appear
+  // Pass if banner didn't appear (expected behavior)
 });
 ```
 
-### 4.5 Error Handling Tests
+> **Note:** Testing new items banner appearance requires backend manipulation. Options:
+> 1. Add test-only API endpoint: `POST /api/test/posts` to create test posts
+> 2. Use Playwright route mocking to simulate `/posts/new-count` response
+> 3. Skip full polling test and test component in isolation
+
+### 5.5 Error Handling Tests
 
 **File:** `frontend/e2e/error-handling.spec.ts`
 
-#### Test 13: API Error Shows Error Message
+#### Test 12: API Error Shows Error Message
 
 ```typescript
+import { test, expect } from './fixtures';
+
 test('should show error when API fails', async ({ page }) => {
-  // Mock failed response
+  // Mock failed response BEFORE navigating
   await page.route('**/api/posts*', route => route.abort('failed'));
 
   await page.goto('/');
 
-  // Should show error message
-  await expect(page.locator('text=Error loading posts')).toBeVisible();
+  // Should show error message using text locator
+  await expect(page.getByText(/error loading posts/i)).toBeVisible({ timeout: 10_000 });
 });
 ```
 
-#### Test 14: Network Error Shows Error Message
+#### Test 13: Network Error Shows Error Message
 
 ```typescript
+import { test, expect } from './fixtures';
+
 test('should show error on network failure', async ({ page }) => {
   // Simulate offline
   await page.context().setOffline(true);
@@ -448,80 +478,53 @@ test('should show error on network failure', async ({ page }) => {
   await page.goto('/');
 
   // Should show error
-  await expect(page.locator('.text-red-700, .text-red-600')).toBeVisible();
+  await expect(page.getByText(/error/i)).toBeVisible({ timeout: 10_000 });
 
-  // Restore network
+  // Restore network for cleanup
   await page.context().setOffline(false);
 });
 ```
 
-### 4.6 Media Loading Tests
+### 5.6 Media Loading Tests
 
 **File:** `frontend/e2e/media.spec.ts`
 
-#### Test 15: Images Load with Correct Aspect Ratio
+#### Test 14: Images Load with Correct Aspect Ratio
 
 ```typescript
-test('should render images with aspect ratio', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
+test('should render images with aspect ratio', async ({ feedPage }) => {
   // Find first post with image
-  const image = page.locator('img[loading="lazy"]').first();
+  const image = feedPage.locator('img[loading="lazy"]').first();
 
   if (await image.isVisible()) {
-    // Check that parent has aspect-ratio
+    // Check that parent container has aspect-ratio style
     const parent = image.locator('xpath=..');
-    const aspectRatio = await parent.evaluate(el =>
-      window.getComputedStyle(el).aspectRatio
-    );
-    expect(aspectRatio).not.toBe('auto');
+    const hasAspectRatio = await parent.evaluate(el => {
+      const style = window.getComputedStyle(el);
+      return style.aspectRatio !== 'auto';
+    });
+
+    expect(hasAspectRatio).toBe(true);
   }
 });
 ```
 
-#### Test 16: Videos Have Controls
+#### Test 15: Videos Have Controls
 
 ```typescript
-test('should render videos with controls', async ({ page }) => {
-  await page.goto('/');
+import { test, expect } from './fixtures';
 
-  // Find video element
-  const video = page.locator('video[controls]').first();
+test('should render videos with controls', async ({ feedPage }) => {
+  // Find video element with controls attribute
+  const video = feedPage.locator('video[controls]').first();
 
   if (await video.isVisible()) {
-    // Check controls attribute
+    // Check controls attribute exists
     await expect(video).toHaveAttribute('controls');
   }
 });
-```
-
----
-
-## 5. Test Data Requirements
-
-### 5.1 Seed Data Specifications
-
-The existing backend seed should produce:
-
-| Requirement | Value | Purpose |
-|-------------|-------|---------|
-| Total posts | 25+ | Test pagination (first page 20 + second page) |
-| Posts with long content | Some | Test expand/collapse button |
-| Posts with attachments | ~40% | Test media rendering |
-| Searchable term | "test" in some posts | Test search functionality |
-| Unique term | "zzzzzzzz" non-existent | Test empty results |
-
-### 5.2 Test Data Setup Commands
-
-```bash
-# From project root
-cd backend
-npm run test:setup    # Create test DB and run migrations
-npm run db:seed       # Load seed data
-
-# Or use frontend convenience script
-cd frontend
-npm run test:e2e:setup
 ```
 
 ---
@@ -540,7 +543,7 @@ on:
     branches: [master, develop]
     paths:
       - 'frontend/**'
-      - 'backend/src/posts/**'  # Run if backend API changes
+      - 'backend/src/posts/**'
   pull_request:
     branches: [master]
     paths:
@@ -600,7 +603,7 @@ jobs:
           DB_DATABASE: news_feed_test
         run: npm run db:seed
 
-      # Start Backend (in background)
+      # Start Backend (background)
       - name: Start backend server
         working-directory: ./backend
         env:
@@ -705,15 +708,17 @@ frontend/
 
 ## 9. Test Data Attributes
 
-Add to components for reliable test selectors:
+Add to components for reliable test selectors (use only when semantic locators don't work):
 
-| Component | Attribute | Location |
-|-----------|-----------|----------|
-| VirtualFeed | `data-testid="virtual-feed"` | Container div |
-| PostCard | `data-post-id={post.id}` | Card component |
-| PostSkeleton | `data-testid="post-skeleton"` | Skeleton component |
-| LoadingIndicator | `data-testid="loading-indicator"` | Loading spinner |
-| NewItemsBanner | `data-testid="new-items-banner"` | Banner component |
+| Component | Attribute | Location | Use Case |
+|-----------|-----------|----------|----------|
+| VirtualFeed | `data-testid="virtual-feed"` | Container div | When no semantic role exists |
+| PostCard | `data-post-id={post.id}` | Card component | Identifying specific posts |
+| PostSkeleton | `data-testid="post-skeleton"` | Skeleton component | No semantic role |
+| LoadingIndicator | `data-testid="loading-indicator"` | Loading spinner | No semantic role |
+| NewItemsBanner | `data-testid="new-items-banner"` | Banner component | No semantic role |
+
+> **Note:** Prefer `getByRole()` and `getByText()` over `getByTestId()` when possible.
 
 ---
 
@@ -725,7 +730,7 @@ Add to components for reliable test selectors:
 - [ ] Create `playwright.config.ts`
 - [ ] Create `.env.test` file
 - [ ] Add test scripts to `package.json`
-- [ ] Create `e2e/fixtures.ts` with shared helpers
+- [ ] Create `e2e/fixtures.ts` with shared fixtures
 
 ### Phase 2: Add Data Test IDs
 
@@ -734,6 +739,7 @@ Add to components for reliable test selectors:
 - [ ] Add `data-testid` to PostSkeleton component
 - [ ] Add `data-testid` to LoadingIndicator component
 - [ ] Add `data-testid` to NewItemsBanner component
+- [ ] Add `aria-label` to interactive elements for semantic locators
 
 ### Phase 3: Write E2E Tests
 
