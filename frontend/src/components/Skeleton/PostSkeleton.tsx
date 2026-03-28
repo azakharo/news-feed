@@ -3,6 +3,7 @@ export const PostSkeleton = () => (
     className="animate-pulse rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
     role="status"
     aria-label="Loading"
+    data-testid="post-skeleton"
   >
     {/* Title skeleton */}
     <div className="mb-3 h-6 w-3/4 rounded-full bg-gray-200 dark:bg-gray-700" />

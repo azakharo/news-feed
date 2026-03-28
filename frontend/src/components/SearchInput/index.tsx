@@ -39,6 +39,7 @@ export const SearchInput = ({
         className="w-full"
         sizing="lg"
         icon={HiSearch}
+        aria-label="Search posts"
       />
       {localValue && (
         <button

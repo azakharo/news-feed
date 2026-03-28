@@ -32,6 +32,7 @@ export const NewItemsBanner: React.FC<NewItemsBannerProps> = ({
         }
       }}
       aria-label={`Show ${count} new posts`}
+      data-testid="new-items-banner"
     >
       <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
         <div className="flex items-center gap-3">

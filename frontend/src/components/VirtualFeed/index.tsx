@@ -131,7 +131,7 @@ export const VirtualFeed = ({searchQuery = ''}: VirtualFeedProps) => {
   );
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-4">
+    <div className="mx-auto max-w-2xl px-4 py-4" data-testid="virtual-feed">
       {/* Error State */}
       {isError && (
         <Alert color="failure" icon={HiInformationCircle} className="mb-4">
