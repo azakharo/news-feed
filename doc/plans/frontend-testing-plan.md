@@ -116,23 +116,25 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Single worker for shared database
-  reporter: 'html',
+  reporter: [
+    ['list'],                                                  // Для удобства чтения человеком
+    ['json', { outputFile: 'test-results/test-results.json' }] // Для глубокого анализа агентом
+  ],
 
   // Timeouts
-  timeout: 30_000,
+  timeout: 7_500,
   expect: {
     timeout: 5_000, // Per-assertion retry timeout
   },
 
   use: {
-    baseURL: 'http://localhost:5173',
-    actionTimeout: 10_000,
-    navigationTimeout: 15_000,
+    baseURL: 'http://localhost:4173',
+    actionTimeout: 7_500,
+    navigationTimeout: 10_000,
 
     // Artifact collection
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
   },
 
   projects: [
@@ -142,11 +144,13 @@ export default defineConfig({
     },
   ],
 
+  // The command is empty because the server (vite run build && vite preview) is run by hand
+  // @ts-ignore
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: undefined,
+    url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 15_000,
+    timeout: 10_000,
   },
 });
 ```
