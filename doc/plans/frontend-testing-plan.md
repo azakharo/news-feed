@@ -441,31 +441,23 @@ All tests use the Page Object Model via fixtures. Import from `./fixtures/base.f
 import { test, expect } from './fixtures/base.fixture';
 
 test('should show skeletons during initial load', async ({ page, feedPage }) => {
-  // Navigate and capture initial state before feed is ready
   await feedPage.goto();
-
-  // Skeletons should appear - web-first assertion with short timeout
   await feedPage.expectSkeletonsVisible();
 });
 
 test('should render posts after initial load', async ({ readyFeedPage }) => {
-  // readyFeedPage fixture already navigated and waited for feed
-  // Verify at least 20 posts (first page)
+  // First page contains 20 posts
   await readyFeedPage.expectPostsCount(20);
 });
 
 test('should load more posts on scroll', async ({ readyFeedPage }) => {
-  // Get initial post count
   const initialCount = await readyFeedPage.getPostsCount();
 
-  // Scroll to bottom using POM method
   await readyFeedPage.scrollToBottom();
-
-  // Wait for loading indicator to appear and then disappear
   await readyFeedPage.expectLoadingVisible();
   await readyFeedPage.expectLoadingHidden();
 
-  // Verify more posts loaded (20 more per page)
+  // Each page loads 20 posts
   await readyFeedPage.expectPostsCount(initialCount + 20);
 });
 ```
@@ -478,36 +470,22 @@ test('should load more posts on scroll', async ({ readyFeedPage }) => {
 import { test, expect } from './fixtures/base.fixture';
 
 test('should highlight search terms in results', async ({ readyFeedPage }) => {
-  // Search using POM method
   await readyFeedPage.search('test');
-
-  // Verify highlights appear
   await readyFeedPage.expectHighlightsVisible();
 
-  // Verify highlighted text contains search term
   const firstHighlight = await readyFeedPage.highlightedText.first().textContent();
   expect(firstHighlight?.toLowerCase()).toContain('test');
 });
 
 test('should show empty state for no results', async ({ readyFeedPage }) => {
-  // Search for non-existent term
   await readyFeedPage.search('zzzzzzzznonexistent999');
-
-  // Wait for empty state
   await readyFeedPage.expectEmptyStateVisible();
 });
 
 test('should reset feed when search is cleared', async ({ readyFeedPage }) => {
-  // Perform search
   await readyFeedPage.search('test');
-
-  // Wait for filtered results
   await expect(readyFeedPage.posts.first()).toBeVisible();
-
-  // Clear search using POM method
   await readyFeedPage.clearSearch();
-
-  // Verify feed shows all posts again
   await readyFeedPage.expectPostsCount(20);
 });
 ```
@@ -520,33 +498,23 @@ test('should reset feed when search is cleared', async ({ readyFeedPage }) => {
 import { test, expect } from './fixtures/base.fixture';
 
 test('should expand long content', async ({ readyFeedPage }) => {
-  // Click expand using POM method
   await readyFeedPage.expandFirstPost();
-
-  // Button should change to Show less
   await readyFeedPage.expectCollapseButtonVisible();
 });
 
 test('should collapse expanded content', async ({ readyFeedPage }) => {
-  // Expand first
   await readyFeedPage.expandFirstPost();
-
-  // Then collapse using POM method
   await readyFeedPage.collapseFirstPost();
-
-  // Button should change back to Show more
   await readyFeedPage.expectExpandButtonVisible();
 });
 
 test('should maintain scroll position when expanding', async ({ readyFeedPage }) => {
-  // Scroll to middle of page
   await readyFeedPage.scrollToPosition(500);
   const scrollBefore = await readyFeedPage.getScrollPosition();
 
-  // Expand a post
   await readyFeedPage.expandFirstPost();
 
-  // Use toPass for retry on scroll check
+  // Retry scroll check to handle dynamic content reflow
   await expect(async () => {
     const scrollAfter = await readyFeedPage.getScrollPosition();
     expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(50);
@@ -562,18 +530,13 @@ test('should maintain scroll position when expanding', async ({ readyFeedPage })
 import { test, expect } from './fixtures/base.fixture';
 
 test('should dismiss banner when X button clicked', async ({ readyFeedPage }) => {
-  // Check if banner is visible
   const isVisible = await readyFeedPage.isBannerVisible();
 
   if (isVisible) {
-    // Dismiss using POM method
     await readyFeedPage.dismissBanner();
-
-    // Banner should be hidden (verified inside dismissBanner)
     await expect(readyFeedPage.newItemsBanner).not.toBeVisible();
   }
-
-  // Pass if banner didn't appear (expected behavior)
+  // Pass if banner didn't appear - polling may not have triggered
 });
 ```
 
@@ -590,25 +553,16 @@ test('should dismiss banner when X button clicked', async ({ readyFeedPage }) =>
 import { test, expect } from './fixtures/base.fixture';
 
 test('should show error when API fails', async ({ page, feedPage }) => {
-  // Mock failed response BEFORE navigating
+  // Mock must be set up before navigation
   await page.route('**/api/posts*', route => route.abort('failed'));
-
   await feedPage.goto();
-
-  // Should show error message
   await feedPage.expectErrorVisible();
 });
 
 test('should show error on network failure', async ({ page, feedPage }) => {
-  // Simulate offline
   await page.context().setOffline(true);
-
   await feedPage.goto();
-
-  // Should show error
   await feedPage.expectErrorVisible();
-
-  // Restore network for cleanup
   await page.context().setOffline(false);
 });
 ```
@@ -621,11 +575,9 @@ test('should show error on network failure', async ({ page, feedPage }) => {
 import { test, expect } from './fixtures/base.fixture';
 
 test('should render images with aspect ratio', async ({ readyFeedPage }) => {
-  // Find first post with image
   const image = readyFeedPage.page.locator('img[loading="lazy"]').first();
 
   if (await image.isVisible()) {
-    // Check that parent container has aspect-ratio style
     const parent = image.locator('xpath=..');
     const hasAspectRatio = await parent.evaluate(el => {
       const style = window.getComputedStyle(el);
@@ -637,11 +589,9 @@ test('should render images with aspect ratio', async ({ readyFeedPage }) => {
 });
 
 test('should render videos with controls', async ({ readyFeedPage }) => {
-  // Find video element with controls attribute
   const video = readyFeedPage.page.locator('video[controls]').first();
 
   if (await video.isVisible()) {
-    // Check controls attribute exists
     await expect(video).toHaveAttribute('controls');
   }
 });
