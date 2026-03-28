@@ -31,15 +31,15 @@
 
 ### Why E2E Only?
 
-| Feature | Unit Test | E2E Test | Decision |
-|---------|-----------|----------|----------|
-| Virtual list scroll position | ❌ Cannot test | ✅ Real browser | E2E required |
-| Dynamic height calculation | ❌ Mock needed | ✅ Actual DOM | E2E required |
-| Infinite scroll triggering | ❌ Mock needed | ✅ Real scroll | E2E required |
-| Search with debounce | ⚠️ Possible | ✅ Full flow | E2E preferred |
-| Expand/collapse text | ⚠️ Possible | ✅ Real interaction | E2E preferred |
-| New items polling | ❌ Complex mock | ✅ Real polling | E2E required |
-| Error states | ⚠️ Mock needed | ✅ Real API | E2E preferred |
+| Feature                      | Unit Test        | E2E Test            | Decision      |
+|:-----------------------------|:-----------------|:--------------------|:--------------|
+| Virtual list scroll position | ❌ Cannot test   | ✅ Real browser     | E2E required  |
+| Dynamic height calculation   | ❌ Mock needed   | ✅ Actual DOM       | E2E required  |
+| Infinite scroll triggering   | ❌ Mock needed   | ✅ Real scroll      | E2E required  |
+| Search with debounce         | ⚠️ Possible    | ✅ Full flow        | E2E preferred |
+| Expand/collapse text         | ⚠️ Possible    | ✅ Real interaction | E2E preferred |
+| New items polling            | ❌ Complex mock  | ✅ Real polling     | E2E required  |
+| Error states                 | ⚠️ Mock needed | ✅ Real API         | E2E preferred |
 
 ---
 
@@ -47,15 +47,15 @@
 
 This plan follows Playwright Golden Rules:
 
-| Rule | Implementation |
-|------|----------------|
-| ✅ `getByRole()` over CSS/XPath | Use semantic locators first |
-| ✅ Never `waitForTimeout()` | Use web-first assertions or `waitForResponse` |
-| ✅ Web-first assertions | `expect(locator).toBeVisible()` not `expect(value).toBe(true)` |
-| ✅ `baseURL` in config | Zero hardcoded URLs in tests |
-| ✅ `trace: 'on-first-retry'` | Rich debugging without slowdown |
-| ✅ Fixtures over globals | Share state via `test.extend()` |
-| ✅ Mock external services only | Real backend with test database |
+| Rule                            | Implementation                                                 |
+|:--------------------------------|:---------------------------------------------------------------|
+| ✅ `getByRole()` over CSS/XPath | Use semantic locators first                                    |
+| ✅ Never `waitForTimeout()`     | Use web-first assertions or `waitForResponse`                  |
+| ✅ Web-first assertions         | `expect(locator).toBeVisible()` not `expect(value).toBe(true)` |
+| ✅ `baseURL` in config          | Zero hardcoded URLs in tests                                   |
+| ✅ `trace: 'on-first-retry'`    | Rich debugging without slowdown                                |
+| ✅ Fixtures over globals        | Share state via `test.extend()`                                |
+| ✅ Mock external services only  | Real backend with test database                                |
 
 ---
 
@@ -63,22 +63,22 @@ This plan follows Playwright Golden Rules:
 
 ### 3.1 Critical Flows (Must Have)
 
-| Category | Priority | Test Cases |
-|----------|----------|------------|
-| Virtual Feed | P0 | Initial load, skeleton, render posts |
-| Infinite Scroll | P0 | Load more, cursor pagination, no duplicates |
-| Search | P0 | Input debounce, results, highlighting, reset |
-| Expand/Collapse | P0 | Toggle state, scroll anchor, height change |
-| New Items Banner | P1 | Appear on new items, click to refresh, dismiss |
+| Category         | Priority | Test Cases                                     |
+|:-----------------|:---------|:-----------------------------------------------|
+| Virtual Feed     | P0       | Initial load, skeleton, render posts           |
+| Infinite Scroll  | P0       | Load more, cursor pagination, no duplicates    |
+| Search           | P0       | Input debounce, results, highlighting, reset   |
+| Expand/Collapse  | P0       | Toggle state, scroll anchor, height change     |
+| New Items Banner | P1       | Appear on new items, click to refresh, dismiss |
 
 ### 3.2 Edge Cases (Should Have)
 
-| Category | Priority | Test Cases |
-|----------|----------|------------|
-| Empty State | P1 | No posts, no search results |
-| Error Handling | P1 | API error, network failure |
-| End of Feed | P2 | End message, no more items |
-| Media Loading | P2 | Images with aspect ratio, videos |
+| Category       | Priority | Test Cases                       |
+|:---------------|:---------|:---------------------------------|
+| Empty State    | P1       | No posts, no search results      |
+| Error Handling | P1       | API error, network failure       |
+| End of Feed    | P2       | End message, no more items       |
+| Media Loading  | P2       | Images with aspect ratio, videos |
 
 ---
 
@@ -156,6 +156,7 @@ export default defineConfig({
 Tests use the same `news_feed_test` database as backend tests.
 
 **Prerequisites:**
+
 1. PostgreSQL running (Docker or local)
 2. `news_feed_test` database created
 3. Migrations applied
@@ -274,29 +275,7 @@ test('should load more posts on scroll', async ({ feedPage }) => {
 
 **File:** `frontend/e2e/search.spec.ts`
 
-#### Test 4: Search Input with Debounce
-
-```typescript
-import { test, expect, SEARCH_DEBOUNCE_MS } from './fixtures';
-
-test('should debounce search input and update results', async ({ feedPage }) => {
-  // Setup response listener BEFORE typing
-  const responsePromise = feedPage.waitForResponse('**/api/posts*');
-
-  // Type in search using semantic locator
-  const searchInput = feedPage.getByRole('textbox', { name: /search/i });
-  await searchInput.fill('test query');
-
-  // Wait for debounced API call
-  const response = await responsePromise;
-  expect(response.status()).toBe(200);
-
-  // Verify URL contains search params or results updated
-  await expect(feedPage.locator('[data-post-id]').first()).toBeVisible();
-});
-```
-
-#### Test 5: Search Results Show Highlighting
+#### Test 4: Search Results Show Highlighting
 
 ```typescript
 import { test, expect } from './fixtures';
@@ -312,10 +291,13 @@ test('should highlight search terms in results', async ({ feedPage }) => {
     const count = await highlights.count();
     expect(count).toBeGreaterThan(0);
   }).toPass({ timeout: 5000 });
+
+  const firstHighlight = await highlights.first().textContent();
+  expect(firstHighlight?.toLowerCase()).toContain('test');
 });
 ```
 
-#### Test 6: Search Returns No Results Message
+#### Test 5: Search Returns No Results Message
 
 ```typescript
 import { test, expect } from './fixtures';
@@ -330,7 +312,7 @@ test('should show empty state for no results', async ({ feedPage }) => {
 });
 ```
 
-#### Test 7: Clear Search Resets Feed
+#### Test 6: Clear Search Resets Feed
 
 ```typescript
 import { test, expect } from './fixtures';
@@ -744,7 +726,7 @@ Add to components for reliable test selectors (use only when semantic locators d
 ### Phase 3: Write E2E Tests
 
 - [ ] Create `virtual-feed.spec.ts` - 3 tests
-- [ ] Create `search.spec.ts` - 4 tests
+- [ ] Create `search.spec.ts` - 3 tests
 - [ ] Create `expand-collapse.spec.ts` - 3 tests
 - [ ] Create `new-items-banner.spec.ts` - 1-2 tests
 - [ ] Create `error-handling.spec.ts` - 2 tests
