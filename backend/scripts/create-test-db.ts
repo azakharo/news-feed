@@ -1,4 +1,9 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Загружаем переменные окружения из .env.test
+dotenv.config({ path: path.resolve(__dirname, '../.env.test') });
 
 const testDbConfig: DataSourceOptions = {
   type: 'postgres',
