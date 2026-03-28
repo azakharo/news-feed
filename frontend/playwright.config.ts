@@ -34,7 +34,7 @@ export default defineConfig({
     },
   ],
 
-  // @ts-ignore
+  // @ts-expect-error "npm run build", then "npm run preview" will be called by hand
   webServer: {
     command: undefined,
     url: 'http://localhost:4173',

@@ -1,8 +1,5 @@
 import {type Page, type Locator, expect} from '@playwright/test';
 
-const a: number = '1';
-console.log(a);
-
 export class FeedPage {
   readonly page: Page;
 
