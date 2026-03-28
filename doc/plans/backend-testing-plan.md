@@ -216,11 +216,11 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
     paths:
       - 'backend/**'
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - 'backend/**'
 
