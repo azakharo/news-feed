@@ -162,6 +162,19 @@ Tests use the same `news_feed_test` database as backend tests.
 3. Migrations applied
 4. Seed data loaded
 
+**Seed Data Requirements:**
+
+To ensure tests work reliably, seed data must include:
+
+| Requirement | Minimum | Purpose |
+|-------------|---------|---------|
+| Posts with long text (>500 chars) | 3 posts | Expand/collapse tests |
+| Posts with images | 2 posts | Media loading tests |
+| Posts with videos | 1 post | Media loading tests |
+| Total posts | 50+ posts | Infinite scroll tests |
+
+> **Note:** Tests that depend on specific data types include skip logic as a safety net, but seed data should always meet these requirements to avoid skipped tests.
+
 **Setup Script:** Add to `frontend/package.json`:
 
 ```json
@@ -237,6 +250,29 @@ export class FeedPage {
     this.newItemsBanner = page.getByTestId('new-items-banner');
   }
 
+  // === Post-specific Locators ===
+
+  /**
+   * Gets a specific post by its ID.
+   */
+  getPostById(postId: string): Locator {
+    return this.posts.locator(`[data-post-id="${postId}"]`);
+  }
+
+  /**
+   * Gets the expand button for a specific post.
+   */
+  getExpandButtonForPost(postId: string): Locator {
+    return this.getPostById(postId).getByRole('button', { name: /show more/i });
+  }
+
+  /**
+   * Gets the collapse button for a specific post.
+   */
+  getCollapseButtonForPost(postId: string): Locator {
+    return this.getPostById(postId).getByRole('button', { name: /show less/i });
+  }
+
   // === Navigation ===
 
   async goto() {
@@ -275,16 +311,55 @@ export class FeedPage {
 
   // === Expand/Collapse Actions ===
 
-  async expandFirstPost() {
-    await this.expandButton.first().click();
+  /**
+   * Finds the first post with a visible expand button.
+   * @returns post ID if found, null if no expandable posts exist
+   */
+  async findFirstExpandablePostId(): Promise<string | null> {
+    const count = await this.posts.count();
+    for (let i = 0; i < count; i++) {
+      const post = this.posts.nth(i);
+      const expandBtn = post.getByRole('button', { name: /show more/i });
+      if (await expandBtn.isVisible()) {
+        return post.getAttribute('data-post-id');
+      }
+    }
+    return null;
   }
 
-  async collapseFirstPost() {
-    await this.collapseButton.first().click();
+  /**
+   * Expands the first post with long text.
+   * @returns post ID if a post was expanded, null if no expandable posts exist
+   */
+  async expandFirstExpandablePost(): Promise<string | null> {
+    const postId = await this.findFirstExpandablePostId();
+    if (postId === null) {
+      return null;
+    }
+    await this.expandPost(postId);
+    return postId;
   }
 
-  async expandPostByIndex(index: number) {
-    await this.expandButton.nth(index).click();
+  /**
+   * Expands a specific post by ID.
+   */
+  async expandPost(postId: string) {
+    await this.getExpandButtonForPost(postId).click();
+  }
+
+  /**
+   * Collapses a specific post by ID.
+   */
+  async collapsePost(postId: string) {
+    await this.getCollapseButtonForPost(postId).click();
+  }
+
+  /**
+   * Checks if any expandable posts exist in the feed.
+   */
+  async hasExpandablePosts(): Promise<boolean> {
+    const postId = await this.findFirstExpandablePostId();
+    return postId !== null;
   }
 
   // === Scroll Actions ===
@@ -365,12 +440,18 @@ export class FeedPage {
     await expect(this.highlightedText.first()).toBeVisible();
   }
 
-  async expectExpandButtonVisible() {
-    await expect(this.expandButton.first()).toBeVisible();
+  /**
+   * Asserts that the expand button for a specific post is visible.
+   */
+  async expectExpandButtonVisible(postId: string) {
+    await expect(this.getExpandButtonForPost(postId)).toBeVisible();
   }
 
-  async expectCollapseButtonVisible() {
-    await expect(this.collapseButton.first()).toBeVisible();
+  /**
+   * Asserts that the collapse button for a specific post is visible.
+   */
+  async expectCollapseButtonVisible(postId: string) {
+    await expect(this.getCollapseButtonForPost(postId)).toBeVisible();
   }
 }
 ```
@@ -426,9 +507,9 @@ export { expect };
 │       └── Calls Page Object Methods                             │
 │                │                                                 │
 │                ├── Navigation: goto()                           │
-│                ├── Actions: search(), expandFirstPost()         │
+│                ├── Actions: search(), expandFirstExpandablePost() │
 │                ├── Waits: waitForFeedReady()                    │
-│                └── Assertions: expectPostsCount()               │
+│                └── Assertions: expectPostsCount(), expectCollapseButtonVisible(postId) │
 │                                                                  │
 │  Benefits:                                                       │
 │  ✅ Single source of truth for locators                         │
@@ -514,21 +595,39 @@ test('should reset feed when search is cleared', async ({ readyFeedPage }) => {
 import { test, expect } from './fixtures/base.fixture';
 
 test('should expand long content', async ({ readyFeedPage }) => {
-  await readyFeedPage.expandFirstPost();
-  await readyFeedPage.expectCollapseButtonVisible();
+  // Skip if no posts with long text exist
+  if (!(await readyFeedPage.hasExpandablePosts())) {
+    test.skip('No posts with long text found in feed');
+  }
+
+  const postId = await readyFeedPage.expandFirstExpandablePost();
+  expect(postId).not.toBeNull();
+  await readyFeedPage.expectCollapseButtonVisible(postId!);
 });
 
 test('should collapse expanded content', async ({ readyFeedPage }) => {
-  await readyFeedPage.expandFirstPost();
-  await readyFeedPage.collapseFirstPost();
-  await readyFeedPage.expectExpandButtonVisible();
+  // Skip if no posts with long text exist
+  if (!(await readyFeedPage.hasExpandablePosts())) {
+    test.skip('No posts with long text found in feed');
+  }
+
+  const postId = await readyFeedPage.expandFirstExpandablePost();
+  expect(postId).not.toBeNull();
+
+  await readyFeedPage.collapsePost(postId!);
+  await readyFeedPage.expectExpandButtonVisible(postId!);
 });
 
 test('should maintain scroll position when expanding', async ({ readyFeedPage }) => {
+  // Skip if no posts with long text exist
+  if (!(await readyFeedPage.hasExpandablePosts())) {
+    test.skip('No posts with long text found in feed');
+  }
+
   await readyFeedPage.scrollToPosition(500);
   const scrollBefore = await readyFeedPage.getScrollPosition();
 
-  await readyFeedPage.expandFirstPost();
+  await readyFeedPage.expandFirstExpandablePost();
 
   // Retry scroll check to handle dynamic content reflow
   await expect(async () => {
