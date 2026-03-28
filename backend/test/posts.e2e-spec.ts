@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PostEntity } from '../src/entities/post.entity';
 import { PostResponseDto } from '../src/posts/dto/post-response.dto';
+import { NewCountResponseDto } from '../src/posts/dto/new-count-response.dto';
 import { createPostFixture, createManyPosts } from './fixtures/post.fixture';
 
 describe('Posts API (e2e)', () => {
@@ -253,8 +254,9 @@ describe('Posts API (e2e)', () => {
         .query({ sinceCursor: currentLatestCursor.toString() });
 
       expect(countResponse.status).toBe(200);
-      expect(countResponse.body.count).toBe(1);
-      expect(countResponse.body.latestCursor).toBeDefined();
+      const countBody = countResponse.body as NewCountResponseDto;
+      expect(countBody.count).toBe(1);
+      expect(countBody.latestCursor).toBeDefined();
     });
 
     it('#2 Count increment with same cursor - After adding post, calling with same sinceCursor returns count+1', async () => {
@@ -275,7 +277,8 @@ describe('Posts API (e2e)', () => {
         .query({ sinceCursor: currentLatestCursor.toString() });
 
       expect(firstCountResponse.status).toBe(200);
-      const firstCount = firstCountResponse.body.count;
+      const firstCountBody = firstCountResponse.body as NewCountResponseDto;
+      const firstCount = firstCountBody.count;
 
       // Add second new post
       await postsRepository.save(createPostFixture({ title: 'New Post B' }));
@@ -286,7 +289,8 @@ describe('Posts API (e2e)', () => {
         .query({ sinceCursor: currentLatestCursor.toString() });
 
       expect(secondCountResponse.status).toBe(200);
-      expect(secondCountResponse.body.count).toBe(firstCount + 1);
+      const secondCountBody = secondCountResponse.body as NewCountResponseDto;
+      expect(secondCountBody.count).toBe(firstCount + 1);
     });
 
     it('#3 Count with search - Filters by search term', async () => {
@@ -314,7 +318,8 @@ describe('Posts API (e2e)', () => {
         });
 
       expect(searchCountResponse.status).toBe(200);
-      expect(searchCountResponse.body.count).toBe(2);
+      const searchCountBody = searchCountResponse.body as NewCountResponseDto;
+      expect(searchCountBody.count).toBe(2);
 
       // Get count without search filter
       const totalCountResponse = await request(app.getHttpServer())
@@ -322,7 +327,8 @@ describe('Posts API (e2e)', () => {
         .query({ sinceCursor: currentLatestCursor.toString() });
 
       expect(totalCountResponse.status).toBe(200);
-      expect(totalCountResponse.body.count).toBe(3);
+      const totalCountBody = totalCountResponse.body as NewCountResponseDto;
+      expect(totalCountBody.count).toBe(3);
     });
 
     it('#4 Invalid sinceCursor - Returns count: 0', async () => {
@@ -332,8 +338,9 @@ describe('Posts API (e2e)', () => {
         .query({ sinceCursor: 'invalid' });
 
       expect(response.status).toBe(200);
-      expect(response.body.count).toBe(0);
-      expect(response.body.latestCursor).toBeNull();
+      const invalidBody = response.body as NewCountResponseDto;
+      expect(invalidBody.count).toBe(0);
+      expect(invalidBody.latestCursor).toBeNull();
     });
   });
 });

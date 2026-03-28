@@ -4,6 +4,7 @@ import { PostsService } from './posts.service';
 import { GetPostsDto } from './dto/get-posts.dto';
 import { PostResponseDto } from './dto/post-response.dto';
 import { GetNewCountDto } from './dto/get-new-count.dto';
+import { NewCountResponseDto } from './dto/new-count-response.dto';
 
 @ApiTags('posts')
 @Controller('posts')
@@ -54,7 +55,7 @@ export class PostsController {
   })
   async getNewCount(
     @Query(new ValidationPipe({ transform: true })) query: GetNewCountDto,
-  ): Promise<{ count: number; latestCursor: string | null }> {
+  ): Promise<NewCountResponseDto> {
     return this.postsService.getNewCount(query);
   }
 }
