@@ -31,6 +31,15 @@ RUN npm ci --only=production
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy package.json for metadata
+COPY --from=builder /app/package.json ./
+
+# Set production environment
+ENV NODE_ENV=production
+
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD wget -qO- http://localhost:3000/ || exit 1
+
 # Change ownership to app user
 RUN chown -R appuser:appgroup /app
 
