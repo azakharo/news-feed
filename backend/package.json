@@ -28,7 +28,11 @@
     "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
     "migration:show": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:show -d src/data-source.ts",
     "db:seed": "ts-node -r tsconfig-paths/register src/database/run-seed.ts",
-    "db:reset": "ts-node -r tsconfig-paths/register src/database/reset-db.ts"
+    "db:reset": "ts-node -r tsconfig-paths/register src/database/reset-db.ts",
+    "migration:run:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/data-source.js",
+    "migration:revert:prod": "node ./node_modules/typeorm/cli.js migration:revert -d dist/data-source.js",
+    "migration:show:prod": "node ./node_modules/typeorm/cli.js migration:show -d dist/data-source.js",
+    "db:seed:prod": "node dist/database/run-seed.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

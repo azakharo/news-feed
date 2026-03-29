@@ -854,40 +854,47 @@ VITE_API_URL=https://api.yourdomain.com
 
 ### Database Migrations
 
-Migrations should be run manually before deployment or as part of the CI/CD pipeline. The application is configured with `migrationsRun: false` to give explicit control over migration execution.
+Migrations should be run manually after deployment. The application is configured with `migrationsRun: false` to give explicit control over migration execution.
 
-To run migrations on production:
+#### Running Migrations
 
-```bash
-# Access backend container
-docker compose -f docker-compose.prod.yml exec backend sh
-
-# Run migrations (if needed)
-npm run migration:run
-```
-
-To check migration status:
+Run migrations inside the backend container:
 
 ```bash
-# Access backend container
-docker compose -f docker-compose.prod.yml exec backend sh
-
-# Check migration status
-npm run migration:show
+# Run pending migrations
+docker compose -f docker-compose.prod.yml exec backend npm run migration:run:prod
 ```
+
+#### Checking Migration Status
+
+```bash
+# Show migration status
+docker compose -f docker-compose.prod.yml exec backend npm run migration:show:prod
+```
+
+#### Reverting Migrations
+
+If you need to revert the last migration:
+
+```bash
+# Revert the last applied migration
+docker compose -f docker-compose.prod.yml exec backend npm run migration:revert:prod
+```
+
+**Note:** Production migration scripts use compiled JavaScript, not TypeScript. This is why they have the `:prod` suffix.
 
 ### Seeding Test Data
 
-Seed data is for testing/demo purposes only. Run it from your local machine pointing to the production database.
+Seed data is for testing/demo purposes only. Run it inside the backend container.
 
 The seed script generates 10,000 posts with random content.
 
 ```bash
-# From your local machine, with production database credentials in .env
-npm run db:seed
+# Run seed inside the backend container
+docker compose -f docker-compose.prod.yml exec backend npm run db:seed:prod
 ```
 
-**Note:** The seed script runs locally and connects to the database via environment variables. Ensure your local `.env` file points to the production database.
+**Warning:** The seed script clears all existing posts before inserting new data. Do not run on a production database with real data.
 
 ### Backup Considerations
 
