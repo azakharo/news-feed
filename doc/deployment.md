@@ -849,14 +849,14 @@ Run migrations inside the backend container:
 
 ```bash
 # Run pending migrations
-docker compose -f docker-compose.prod.yml exec backend npm run migration:run:prod
+docker compose -f docker-compose.prod.yml --env-file .env.production exec backend npm run migration:run:prod
 ```
 
 #### Checking Migration Status
 
 ```bash
 # Show migration status
-docker compose -f docker-compose.prod.yml exec backend npm run migration:show:prod
+docker compose -f docker-compose.prod.yml --env-file .env.production exec backend npm run migration:show:prod
 ```
 
 #### Reverting Migrations
@@ -865,7 +865,7 @@ If you need to revert the last migration:
 
 ```bash
 # Revert the last applied migration
-docker compose -f docker-compose.prod.yml exec backend npm run migration:revert:prod
+docker compose -f docker-compose.prod.yml --env-file .env.production exec backend npm run migration:revert:prod
 ```
 
 **Note:** Production migration scripts use compiled JavaScript, not TypeScript. This is why they have the `:prod` suffix.
@@ -878,7 +878,7 @@ The seed script generates 10,000 posts with random content.
 
 ```bash
 # Run seed inside the backend container
-docker compose -f docker-compose.prod.yml exec backend npm run db:seed:prod
+docker compose -f docker-compose.prod.yml --env-file .env.production exec backend npm run db:seed:prod
 ```
 
 **Warning:** The seed script clears all existing posts before inserting new data. Do not run on a production database with real data.
