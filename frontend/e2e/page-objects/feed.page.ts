@@ -83,7 +83,7 @@ export class FeedPage {
     // Wait for debounce (500ms) and API response
     await this.page
       .waitForResponse(
-        resp => resp.url().includes('/api/posts') && resp.status() === 200,
+        resp => resp.url().includes('/posts') && resp.status() === 200,
         {timeout: 5000},
       )
       .catch(() => {}); // Ignore if no request made
@@ -94,7 +94,7 @@ export class FeedPage {
     // Wait for API response after clearing search
     await this.page
       .waitForResponse(
-        resp => resp.url().includes('/api/posts') && resp.status() === 200,
+        resp => resp.url().includes('/posts') && resp.status() === 200,
         {timeout: 5000},
       )
       .catch(() => {}); // Ignore if no request made

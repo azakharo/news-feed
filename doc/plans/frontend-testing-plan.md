@@ -299,7 +299,7 @@ export class FeedPage {
     await this.searchInput.fill(query);
     // Wait for debounce (500ms) and API response
     await this.page.waitForResponse(resp =>
-      resp.url().includes('/api/posts') && resp.status() === 200,
+      resp.url().includes('/posts') && resp.status() === 200,
       { timeout: 5000 }
     ).catch(() => {}); // Ignore if no request made
   }
@@ -308,7 +308,7 @@ export class FeedPage {
     await this.clearSearchButton.click();
     // Wait for API response after clearing search
     await this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/posts') && resp.status() === 200,
+      (resp) => resp.url().includes('/posts') && resp.status() === 200,
       { timeout: 5000 }
     ).catch(() => {}); // Ignore if no request made
   }
@@ -659,7 +659,7 @@ import { test, expect } from './fixtures/base.fixture';
 
 test('should show error when API fails', async ({ page, feedPage }) => {
   // Mock must be set up before navigation
-  await page.route('**/api/posts*', route => route.abort('failed'));
+  await page.route('**/posts*', route => route.abort('failed'));
   await feedPage.goto();
   await feedPage.expectErrorVisible();
 });
@@ -791,7 +791,7 @@ jobs:
         run: npm run start &
 
       - name: Wait for backend
-        run: npx wait-on http://localhost:3000/api/posts -t 30000
+        run: npx wait-on http://localhost:3000/posts -t 30000
 
       # Setup Frontend
       - name: Install frontend dependencies
