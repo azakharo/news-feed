@@ -12,8 +12,8 @@ export const dataSourceOptions: DataSourceOptions = {
   database: process.env.DB_DATABASE || 'news_feed_db',
   entities: [PostEntity],
   migrations: isTsNode
-    ? ['src/migrations/**/*.ts']
-    : ['dist/migrations/**/*.js'],
+    ? [__dirname + '/migrations/*.ts']
+    : [__dirname + '/migrations/*.js'],
   migrationsTableName: 'migrations',
   synchronize: false,
   logging: ['query', 'error'],
