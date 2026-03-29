@@ -1,6 +1,6 @@
-# NewsFeed Deployment Plan
+# NewsFeed Deployment Guide
 
-This document outlines the preparation steps and deployment process for the NewsFeed application (backend + frontend) using Docker Compose on a VPS.
+This guide covers the complete deployment process for NewsFeed using Docker Compose on a VPS.
 
 ---
 
@@ -25,12 +25,12 @@ This document outlines the preparation steps and deployment process for the News
 
 ### Application Components
 
-| Component  | Technology | Description                                    |
-|:-----------|:-----------|:-----------------------------------------------|
+| Component  | Technology   | Description                                    |
+|:-----------|:-------------|:-----------------------------------------------|
 | Frontend   | React + Vite | Virtualized news feed UI with infinite scroll |
-| Backend    | NestJS     | REST API with cursor-based pagination          |
-| Database   | PostgreSQL | Persistent storage for posts                   |
-| Nginx      | Nginx      | Reverse proxy, SSL termination, static files   |
+| Backend    | NestJS       | REST API with cursor-based pagination          |
+| Database   | PostgreSQL   | Persistent storage for posts                   |
+| Nginx      | Nginx        | Serves frontend, reverse proxy to backend, SSL termination |
 
 ### Architecture Diagram
 
@@ -42,17 +42,23 @@ This document outlines the preparation steps and deployment process for the News
 │  │                  Docker Network                      │   │
 │  │                (newsfeed-network)                    │   │
 │  │                                                      │   │
-│  │   ┌─────────┐    ┌─────────┐    ┌─────────────┐    │   │
-│  │   │  nginx  │───▶│ backend │───▶│  postgres   │    │   │
-│  │   │ :80/443 │    │  :3000  │    │    :5432    │    │   │
-│  │   └─────────┘    └─────────┘    └─────────────┘    │   │
-│  │        │                                            │   │
-│  └────────│────────────────────────────────────────────┘   │
+│  │   ┌──────────────────────┐    ┌─────────────┐       │   │
+│  │   │     nginx            │    │  postgres   │       │   │
+│  │   │  (frontend + proxy)  │───▶│    :5432    │       │   │
+│  │   │      :80/443         │    └─────────────┘       │   │
+│  │   │        │             │                          │   │
+│  │   │   ┌────┴────┐        │                          │   │
+│  │   │   │ backend │        │                          │   │
+│  │   │   │  :3000  │        │                          │   │
+│  │   │   └─────────┘        │                          │   │
+│  │   └──────────────────────┘                          │   │
+│  │                                                      │   │
+│  └──────────────────────────────────────────────────────┘   │
 │           │                                                  │
 │           ▼                                                  │
 │   ┌───────────────────────────────┐                        │
 │   │        Docker Volumes         │                        │
-│  │  • postgres_data (database)   │                        │
+│   │  • postgres_data (database)   │                        │
 │   └───────────────────────────────┘                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -91,7 +97,7 @@ A domain name is optional for initial deployment. You can deploy using just the 
 
 ## 3. Files to Create
 
-The following files need to be created before deployment:
+The following files need to be created in the project root directory before deployment:
 
 ### 3.1 Backend Files
 
@@ -157,24 +163,26 @@ PORT=3000
 NODE_ENV=production
 ```
 
-### 3.2 Frontend Files
+### 3.2 Nginx + Frontend Container
 
-#### [`frontend/Dockerfile`](../frontend/Dockerfile)
+The nginx container serves the frontend static files and acts as a reverse proxy to the backend.
+
+#### [`nginx/Dockerfile`](../nginx/Dockerfile)
 
 ```dockerfile
-# Build stage
-FROM node:20-alpine AS builder
+# Build stage for frontend
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy frontend package files
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy frontend source code
+COPY frontend/ ./
 
 # Build argument for API URL
 ARG VITE_API_URL
@@ -182,81 +190,20 @@ ARG VITE_API_URL
 # Set environment variable for build
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the application
+# Build the frontend
 RUN npm run build
 
 # Production stage with nginx
 FROM nginx:alpine AS production
 
-# Copy custom nginx config for static file serving
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Expose port 80
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-#### [`frontend/nginx.conf`](../frontend/nginx.conf)
-
-```nginx
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private auth;
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml application/javascript application/json;
-
-    # Cache static assets with hash in filename (immutable)
-    location ~* \.(?:css|js|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        access_log off;
-    }
-
-    # index.html - no cache for SPA routing
-    location / {
-        expires -1;
-        add_header Cache-Control "no-store, no-cache, must-revalidate";
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Health check endpoint
-    location /health {
-        return 200 "ok";
-        add_header Content-Type text/plain;
-    }
-}
-```
-
-#### [`frontend/.env.production.example`](../frontend/.env.production.example)
-
-```env
-# API URL for frontend (empty string for same-origin deployment)
-VITE_API_URL=
-```
-
-### 3.3 Nginx Reverse Proxy
-
-#### [`nginx/Dockerfile`](../nginx/Dockerfile)
-
-```dockerfile
-FROM nginx:alpine
-
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Create SSL directory
 RUN mkdir -p /etc/nginx/ssl
+
+# Copy built frontend from builder stage
+COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
 # Expose ports
 EXPOSE 80 443
@@ -304,11 +251,7 @@ http {
     # Rate limiting zones
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
 
-    # Upstream definitions
-    upstream frontend {
-        server frontend:80;
-    }
-
+    # Upstream for backend
     upstream backend {
         server backend:3000;
     }
@@ -354,6 +297,9 @@ http {
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-XSS-Protection "1; mode=block" always;
 
+        root /usr/share/nginx/html;
+        index index.html;
+
         # Health check endpoint
         location /health {
             access_log off;
@@ -377,20 +323,24 @@ http {
             proxy_read_timeout 90s;
         }
 
-        # All other requests - serve frontend
+        # Cache static assets with hash in filename (immutable)
+        location ~* \.(?:css|js|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
+        # All other requests - serve frontend SPA
         location / {
-            proxy_pass http://frontend;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            expires -1;
+            add_header Cache-Control "no-store, no-cache, must-revalidate";
+            try_files $uri $uri/ /index.html;
         }
     }
 }
 ```
 
-### 3.4 Docker Compose Production Configuration
+### 3.3 Docker Compose Production Configuration
 
 #### [`docker-compose.prod.yml`](../docker-compose.prod.yml)
 
@@ -443,28 +393,12 @@ services:
     networks:
       - newsfeed-network
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL:-}
-    container_name: news_feed_frontend
-    restart: always
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - newsfeed-network
-
   nginx:
     build:
-      context: ./nginx
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: news_feed_nginx
     restart: always
     ports:
@@ -474,7 +408,6 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
-      - frontend
       - backend
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/health"]
@@ -492,7 +425,7 @@ networks:
     driver: bridge
 ```
 
-### 3.5 Utility Scripts
+### 3.4 Utility Scripts
 
 #### [`scripts/generate-dev-certs.sh`](../scripts/generate-dev-certs.sh)
 
@@ -523,13 +456,24 @@ echo "   Certificate: $SSL_DIR/cert.pem"
 echo "   Private key: $SSL_DIR/key.pem"
 ```
 
-### 3.6 Environment Files
+### 3.5 Environment Files
+
+#### [`.env.production.example`](../.env.production.example) (root directory)
+
+```env
+# Database Configuration
+DB_USERNAME=postgres
+DB_PASSWORD=<your-secure-password>
+DB_DATABASE=news_feed_db
+
+# Frontend Configuration
+VITE_API_URL=
+```
 
 Create production environment files based on the examples:
 
-1. Copy `.env.production.example` to `.env.production` in backend directory
-2. Copy `.env.production.example` to `.env.production` in root directory
-3. Update values with secure passwords and configuration
+1. Copy `.env.production.example` to `.env.production` in the root directory
+2. Update values with secure passwords and configuration
 
 ---
 
@@ -934,19 +878,16 @@ npm run migration:show
 
 ### Seeding Test Data
 
-Seed data is for testing/demo purposes only. Run it from your local machine pointing to the production API.
+Seed data is for testing/demo purposes only. Run it from your local machine pointing to the production database.
 
 The seed script generates 10,000 posts with random content.
 
 ```bash
-# From your local machine, pointing to production (Linux/Mac)
-BACKEND_URL=https://your-server.com npm run db:seed
-
-# From your local machine, pointing to production (Windows PowerShell)
-$env:BACKEND_URL="https://your-server.com"; npm run db:seed
+# From your local machine, with production database credentials in .env
+npm run db:seed
 ```
 
-**Note:** The seed script runs locally and connects to the production database via environment variables. Ensure your `.env` file points to the production database, or override the variables directly.
+**Note:** The seed script runs locally and connects to the database via environment variables. Ensure your local `.env` file points to the production database.
 
 ### Backup Considerations
 
@@ -983,9 +924,6 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs -f ngi
 # Backend logs
 docker compose -f docker-compose.prod.yml --env-file .env.production logs -f backend
 
-# Frontend logs (build only)
-docker compose -f docker-compose.prod.yml --env-file .env.production logs -f frontend
-
 # Postgres logs
 docker compose -f docker-compose.prod.yml --env-file .env.production logs -f postgres
 ```
@@ -1001,7 +939,6 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail
 | Service  | Endpoint    | Description                        |
 |:---------|:------------|:-----------------------------------|
 | Nginx    | `/health`   | Returns `ok` if nginx is running   |
-| Frontend | `/health`   | Returns `ok` if frontend container is running |
 | Backend  | `/api/docs` | Swagger UI for API documentation   |
 
 Test health endpoints:
@@ -1027,7 +964,6 @@ Expected output shows all services as `healthy`:
 ```
 NAME                 STATUS
 news_feed_nginx      Up 2 minutes (healthy)
-news_feed_frontend   Up 2 minutes (healthy)
 news_feed_backend    Up 2 minutes (healthy)
 news_feed_postgres   Up 2 minutes (healthy)
 ```
@@ -1255,10 +1191,25 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec nginx 
 
 | Container  | Image                 | Purpose                                                                 |
 |:-----------|:----------------------|:------------------------------------------------------------------------|
-| `nginx`    | Custom (nginx-alpine) | Reverse proxy, SSL termination, routes requests to frontend/backend     |
-| `frontend` | Custom (nginx-alpine) | Serves React static files                                               |
+| `nginx`    | Custom (nginx-alpine) | Serves frontend static files, reverse proxy to backend, SSL termination |
 | `backend`  | Custom (node-alpine)  | NestJS API server with cursor-based pagination                          |
 | `postgres` | postgres:15-alpine    | PostgreSQL database                                                     |
+
+### Container Security Model
+
+All containers in NewsFeed follow security best practices:
+
+**Non-root User Execution:**
+- The backend container runs as `appuser` (UID 1001), not as root
+- This user is created automatically during Docker image build (see [`backend/Dockerfile`](../backend/Dockerfile))
+- No manual user creation is required on your VPS
+- This reduces security risk if the container is compromised
+
+**What This Means for Deployment:**
+- When you run `docker compose up --build`, Docker automatically creates the `appuser` inside the image
+- Files and directories inside the container are owned by this user
+- You don't need to create this user on your host system
+- If you need to access files in Docker volumes, you may need to use `docker compose exec` commands
 
 ### Network Configuration
 
@@ -1317,8 +1268,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.production restart ngi
 |:----------------------------------------------|:----------------------------------------|
 | [`docker-compose.prod.yml`](../docker-compose.prod.yml) | Production Docker Compose configuration |
 | [`.env.production`](../.env.production)       | Production environment variables        |
+| [`nginx/Dockerfile`](../nginx/Dockerfile)     | Nginx + frontend container definition   |
 | [`nginx/nginx.conf`](../nginx/nginx.conf)     | Nginx configuration                     |
 | [`nginx/ssl/`](../nginx/ssl/)                 | SSL certificates directory              |
 | [`scripts/generate-dev-certs.sh`](../scripts/generate-dev-certs.sh) | Self-signed certificate generation |
 | [`backend/Dockerfile`](../backend/Dockerfile) | Backend container definition            |
-| [`frontend/Dockerfile`](../frontend/Dockerfile) | Frontend container definition          |
