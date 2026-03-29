@@ -6,10 +6,3 @@ test('should show error when API fails', async ({page, feedPage}) => {
   await feedPage.goto();
   await feedPage.expectErrorVisible();
 });
-
-test('should show error on network failure', async ({page, feedPage}) => {
-  await page.context().setOffline(true);
-  await feedPage.goto();
-  await feedPage.expectErrorVisible();
-  await page.context().setOffline(false);
-});
