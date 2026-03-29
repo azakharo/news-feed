@@ -34,14 +34,26 @@ test('should maintain scroll position when expanding', async ({
     test.skip(true, 'No posts with long text found in feed');
   }
 
+  const postId = await readyFeedPage.findFirstExpandablePostId();
+  expect(postId).not.toBeNull();
+
   await readyFeedPage.scrollToPosition(500);
-  const scrollBefore = await readyFeedPage.getScrollPosition();
+  await readyFeedPage.getScrollPosition(); // ensure scroll is applied
 
-  await readyFeedPage.expandFirstExpandablePost();
+  const expandButton = readyFeedPage.getExpandButtonForPost(postId!);
 
-  // Retry scroll check to handle dynamic content reflow
+  // Scroll the button into view explicitly (we control the scroll, not Playwright)
+  await expandButton.scrollIntoViewIfNeeded();
+  const scrollAfterScrollIntoView = await readyFeedPage.getScrollPosition();
+
+  // Click the button - since it's now in viewport, Playwright won't auto-scroll
+  await expandButton.click();
+
+  await readyFeedPage.expectCollapseButtonVisible(postId!);
+
+  // The scroll position should be approximately the same as after scrollIntoViewIfNeeded
   await expect(async () => {
     const scrollAfter = await readyFeedPage.getScrollPosition();
-    expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(50);
+    expect(Math.abs(scrollAfter - scrollAfterScrollIntoView)).toBeLessThan(50);
   }).toPass({timeout: 1000});
 });
