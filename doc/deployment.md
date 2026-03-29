@@ -148,21 +148,6 @@ EXPOSE 3000
 CMD ["node", "dist/main.js"]
 ```
 
-#### [`backend/.env.production.example`](../backend/.env.production.example)
-
-```env
-# Database Configuration
-DB_HOST=postgres
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=<your-secure-password>
-DB_DATABASE=news_feed_db
-
-# Application
-PORT=3000
-NODE_ENV=production
-```
-
 ### 3.2 Nginx + Frontend Container
 
 The nginx container serves the frontend static files and acts as a reverse proxy to the backend.
@@ -458,6 +443,8 @@ echo "   Private key: $SSL_DIR/key.pem"
 
 ### 3.5 Environment Files
 
+> **Note:** Only one `.env.production` file in the root directory is required for Docker deployment. Docker Compose passes environment variables directly to containers via the `environment:` section in [`docker-compose.prod.yml`](../docker-compose.prod.yml). A separate `backend/.env.production` file is not needed.
+
 #### [`.env.production.example`](../.env.production.example) (root directory)
 
 ```env
@@ -470,7 +457,7 @@ DB_DATABASE=news_feed_db
 VITE_API_URL=
 ```
 
-Create production environment files based on the examples:
+Create production environment file:
 
 1. Copy `.env.production.example` to `.env.production` in the root directory
 2. Update values with secure passwords and configuration
