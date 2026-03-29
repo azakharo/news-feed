@@ -43,7 +43,9 @@ export class FeedPage {
    * Gets a specific post by its ID.
    */
   getPostById(postId: string): Locator {
-    return this.posts.locator(`[data-post-id="${postId}"]`);
+    // Use page.locator directly instead of chaining through this.posts
+    // to avoid the nested selector issue
+    return this.page.locator(`[data-post-id="${postId}"]`);
   }
 
   /**

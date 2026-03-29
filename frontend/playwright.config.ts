@@ -12,7 +12,7 @@ export default defineConfig({
   ],
 
   // Timeouts
-  timeout: 7_500,
+  timeout: 5_000,
   expect: {
     timeout: 5_000,
   },
