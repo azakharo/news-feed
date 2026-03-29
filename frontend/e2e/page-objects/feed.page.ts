@@ -158,7 +158,10 @@ export class FeedPage {
   // === Scroll Actions ===
 
   async scrollToBottom() {
-    await this.page.mouse.wheel(0, 5000);
+    // Use JavaScript execution instead of mouse.wheel for more reliable scrolling
+    await this.page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
   }
 
   async scrollToPosition(y: number) {
