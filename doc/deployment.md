@@ -118,7 +118,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (includes migrations)
 RUN npm run build
 
 # Production stage
@@ -145,7 +145,7 @@ USER appuser
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
 ```
 
 ### 3.2 Nginx + Frontend Container
@@ -868,7 +868,12 @@ If you need to revert the last migration:
 docker compose -f docker-compose.prod.yml --env-file .env.production exec backend npm run migration:revert:prod
 ```
 
-**Note:** Production migration scripts use compiled JavaScript, not TypeScript. This is why they have the `:prod` suffix.
+**Note:** Production migration scripts use compiled JavaScript, not TypeScript. The build process consists of two steps:
+
+1. `nest build` - compiles main application code
+2. `npm run build:migrations` - compiles TypeORM migrations separately
+
+Both are combined in the main `build` command (`npm run build`), which runs automatically during Docker image build.
 
 ### Seeding Test Data
 
