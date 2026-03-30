@@ -16,7 +16,8 @@ E2E tests use Playwright and run against the backend test database (`news_feed_t
 
 ```bash
 cd ../backend
-npm run test:setup && npm run db:seed
+docker compose up -d
+npm run test:setup
 ```
 
 This creates the test database, runs migrations, and seeds test data.
@@ -29,7 +30,13 @@ This creates the test database, runs migrations, and seeds test data.
    npm run start:dev:testui
    ```
 
-2. **Run e2e tests** (in frontend directory):
+2. **Start frontend** (in frontend directory):
+   ```bash
+   npm run build
+   npm run preview
+   ```
+
+3. **Run e2e tests** (in frontend directory):
    ```bash
    npm run test:e2e
    ```
