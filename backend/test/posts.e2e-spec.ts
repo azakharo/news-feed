@@ -24,6 +24,7 @@ describe('Posts API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
 
@@ -58,10 +59,10 @@ describe('Posts API (e2e)', () => {
   }
 
   // ========================================
-  // GET /posts Test Cases (8 tests)
+  // GET /api/posts Test Cases (8 tests)
   // ========================================
 
-  describe('GET /posts', () => {
+  describe('GET /api/posts', () => {
     it('#1 First page without cursor - Returns 20 items, hasMore=true', async () => {
       const response = await request(server).get('/posts');
 
@@ -239,10 +240,10 @@ describe('Posts API (e2e)', () => {
   });
 
   // ========================================
-  // GET /posts/new-count Test Cases (4 tests)
+  // GET /api/posts/new-count Test Cases (4 tests)
   // ========================================
 
-  describe('GET /posts/new-count', () => {
+  describe('GET /api/posts/new-count', () => {
     it('#1 Count with latestCursor - After adding post, calling with latestCursor returns count=1', async () => {
       const currentLatestCursor = await getLatestCursor();
 
