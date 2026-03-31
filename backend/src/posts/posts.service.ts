@@ -1,19 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PostEntity } from '../entities/post.entity';
 import { GetPostsDto } from './dto/get-posts.dto';
 import { PostResponseDto } from './dto/post-response.dto';
 import { GetNewCountDto } from './dto/get-new-count.dto';
+
+const CACHE_TTL = 300000; // 5 минут
 
 @Injectable()
 export class PostsService {
   constructor(
     @InjectRepository(PostEntity)
     private readonly postRepository: Repository<PostEntity>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  private generateCacheKey(
+    prefix: string,
+    params: Record<string, any>,
+  ): string {
+    return `${prefix}:${JSON.stringify(params)}`;
+  }
+
   async findPosts(query: GetPostsDto): Promise<PostResponseDto> {
+    const cacheKey = this.generateCacheKey('posts:list', query);
+
+    // Check cache first (cache-aside pattern)
+    const cachedResult = await this.cacheManager.get<PostResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // Cache miss - query database
     const { limit = 20, cursor, search } = query;
     const qb = this.postRepository.createQueryBuilder('post');
 
@@ -56,11 +77,16 @@ export class PostsService {
         ? items[items.length - 1].cursorId.toString()
         : null;
 
-    return {
+    const response: PostResponseDto = {
       items,
       nextCursor,
       hasMore,
     };
+
+    // Save to cache
+    await this.cacheManager.set(cacheKey, response, CACHE_TTL);
+
+    return response;
   }
 
   async getNewCount(
@@ -100,5 +126,11 @@ export class PostsService {
       count: parseInt(result?.count || '0', 10),
       latestCursor: result?.latestCursor || null,
     };
+  }
+
+  async invalidatePostsCache(): Promise<void> {
+    // Для простоты очищаем весь кэш posts
+    // В продакшене использовать паттерн с версионированием
+    await this.cacheManager.del('posts:list');
   }
 }

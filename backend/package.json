@@ -38,14 +38,18 @@
     "db:seed:prod": "node dist/database/run-seed.js"
   },
   "dependencies": {
+    "@keyv/redis": "5.1.6",
+    "@nestjs/cache-manager": "3.1.0",
     "@nestjs/common": "11.1.17",
     "@nestjs/core": "11.1.17",
     "@nestjs/mapped-types": "2.1.1",
     "@nestjs/platform-express": "11.1.17",
     "@nestjs/swagger": "11.2.6",
     "@nestjs/typeorm": "11.0.0",
+    "cache-manager": "7.2.8",
     "class-transformer": "0.5.1",
     "class-validator": "0.15.1",
+    "keyv": "5.6.0",
     "pg": "8.20.0",
     "reflect-metadata": "0.2.2",
     "typeorm": "0.3.28"
