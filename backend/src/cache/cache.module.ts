@@ -6,7 +6,7 @@ import KeyvRedis from '@keyv/redis';
 @Module({
   imports: [
     NestCacheModule.registerAsync({
-      useFactory: async () => ({
+      useFactory: () => ({
         stores: [new KeyvRedis('redis://localhost:6379')],
         defaultTtl: 60000 * 5, // 5 минут
       }),
