@@ -247,7 +247,7 @@ docker exec -it news_feed_redis redis-cli ping
 
 ### Задача 2: Кэширование списка постов
 
-**Цель**: Реализовать кэширование для endpoint `/posts` с использованием Redis
+**Цель**: Реализовать кэширование для endpoint `/api/posts` с использованием Redis
 
 **Шаг 2.1**: Создание модуля кэширования
 
@@ -367,7 +367,7 @@ export class PostsService {
 
 ### Задача 3: Кэширование счётчика новых постов
 
-**Цель**: Кэшировать endpoint `/posts/new-count` для уменьшения нагрузки на БД
+**Цель**: Кэшировать endpoint `/api/posts/new-count` для уменьшения нагрузки на БД
 
 ```typescript
 // src/posts/posts.service.ts (добавление метода)
@@ -552,7 +552,7 @@ export class SessionModule {}
 
 ### Практические задания для закрепления
 
-1. **Измерить производительность**: Сравнить время отклика `/posts` с кэшем и без
+1. **Измерить производительность**: Сравнить время отклика `/api/posts` с кэшем и без
 2. **Инвалидация кэша**: Добавить метод `invalidatePostsCache()` и вызвать его при создании нового поста
 3. **Настроить TTL**: Попробовать разные значения TTL (30 сек, 5 мин, 1 час) и сравнить поведение
 4. **Redis CLI**: Поработать с Redis напрямую через `docker exec -it news_feed_redis redis-cli`
@@ -615,7 +615,7 @@ MEMORY STATS
 В текущем приложении NewsFeed мы реализовали:
 - Cursor-based pagination для постов
 - Search по title и content
-- Соответствующие endpoints: `GET /posts`, `GET /posts/new-count`
+- Соответствующие endpoints: `GET /api/posts`, `GET /api/posts/new-count`
 
 Эти endpoints идеально подходят для демонстрации кэширования, так как:
 - Списки постов запрашиваются часто
