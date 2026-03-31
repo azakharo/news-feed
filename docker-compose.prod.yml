@@ -20,6 +20,18 @@ services:
     networks:
       - newsfeed-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: news_feed_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - newsfeed-network
+
   backend:
     build:
       context: ./backend
@@ -72,6 +84,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   newsfeed-network:
