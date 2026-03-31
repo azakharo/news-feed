@@ -19,7 +19,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "dotenv -e .env.test -- jest --config ./test/jest-e2e.json",
     "test:db:create": "ts-node -r tsconfig-paths/register scripts/create-test-db.ts",
     "test:db:migrate": "dotenv -e .env.test -- ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "test:setup": "npm run test:db:create && npm run test:db:migrate && npm run db:seed:test",
