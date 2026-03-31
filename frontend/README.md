@@ -26,7 +26,6 @@ This creates the test database, runs migrations, and seeds test data.
 
 1. **Start backend with test config** (in backend directory):
    ```bash
-   cd ../backend
    npm run start:dev:testui
    ```
 
