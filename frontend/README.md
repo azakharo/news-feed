@@ -31,7 +31,7 @@ This creates the test database, runs migrations, and seeds test data.
 
 2. **Start frontend** (in frontend directory):
    ```bash
-   npm run build
+   npm run build:for:e2e
    npm run preview
    ```
 
